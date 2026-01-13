@@ -117,11 +117,11 @@ export function revealTiles(
 }
 
 export function updateVisibility(maze: Maze, playerPos: Position, visibilityRadius: number): Maze {
-  const newTiles = maze.tiles.map((row) =>
+  const newTiles: Tile[][] = maze.tiles.map((row) =>
     row.map((tile) => ({
       ...tile,
-      fog: tile.fog === "visible" ? ("seen" as const) : tile.fog,
-    }))
+      fog: tile.fog === "visible" ? "seen" : tile.fog,
+    } as Tile))
   );
 
   for (let dy = -visibilityRadius; dy <= visibilityRadius; dy++) {

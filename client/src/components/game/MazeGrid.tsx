@@ -59,7 +59,7 @@ export function MazeGrid({
 
     const visibilityClass = tile.fog === "seen" ? "opacity-80" : "";
     const clickableClass =
-      isMoving && isAdjacent(tile.x, tile.y) && tile.type !== "wall" && remainingSteps > 0
+      isMoving && isAdjacent(tile.x, tile.y) && remainingSteps > 0
         ? "cursor-pointer ring-2 ring-primary ring-offset-2 ring-offset-background"
         : "";
 
@@ -111,10 +111,10 @@ export function MazeGrid({
                           <User className="w-4 h-4 sm:w-5 sm:h-5" />
                         </div>
                       )}
-                      {isEntrance && !isPlayer && tile.fog !== "hidden" && (
+                      {isEntrance && !isPlayer && (
                         <Home className="w-4 h-4 sm:w-5 sm:h-5 text-maze-entrance" />
                       )}
-                      {isExit && !isPlayer && tile.fog !== "hidden" && (
+                      {isExit && !isPlayer && (
                         <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-maze-exit" />
                       )}
                     </>
