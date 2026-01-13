@@ -81,11 +81,27 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+        success: {
+          DEFAULT: "hsl(var(--success) / <alpha-value>)",
+          foreground: "hsl(var(--success-foreground) / <alpha-value>)",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning) / <alpha-value>)",
+          foreground: "hsl(var(--warning-foreground) / <alpha-value>)",
+        },
+        maze: {
+          wall: "hsl(var(--maze-wall) / <alpha-value>)",
+          path: "hsl(var(--maze-path) / <alpha-value>)",
+          fog: "hsl(var(--maze-fog) / <alpha-value>)",
+          entrance: "hsl(var(--maze-entrance) / <alpha-value>)",
+          exit: "hsl(var(--maze-exit) / <alpha-value>)",
+        },
       },
       fontFamily: {
         sans: ["var(--font-sans)"],
         serif: ["var(--font-serif)"],
         mono: ["var(--font-mono)"],
+        display: ["var(--font-display)"],
       },
       keyframes: {
         "accordion-down": {
