@@ -91,17 +91,26 @@ export class DatabaseStorage implements IStorage {
       const state = row.question_states;
       let score = 100;
       
-      score -= (state?.streak || 0) * 20;
+      score -= (state?.streak || 0) * 30;
       
       if (state?.lastSeen) {
-        const hoursSinceLastSeen = (now.getTime() - state.lastSeen.getTime()) / (1000 * 60 * 60);
-        score += Math.min(hoursSinceLastSeen * 5, 50);
+        const minutesSinceLastSeen = (now.getTime() - state.lastSeen.getTime()) / (1000 * 60);
+        if (minutesSinceLastSeen < 2) {
+          score -= 200;
+        } else if (minutesSinceLastSeen < 5) {
+          score -= 100;
+        } else if (minutesSinceLastSeen < 10) {
+          score -= 50;
+        } else {
+          const hoursSinceLastSeen = minutesSinceLastSeen / 60;
+          score += Math.min(hoursSinceLastSeen * 10, 50);
+        }
       } else {
-        score += 30;
+        score += 50;
       }
       
       score += (3 - q.difficulty) * 10;
-      score += Math.random() * 20;
+      score += Math.random() * 40;
       
       return { 
         question: dbQuestionToQuestion(q, state, row.categories?.displayName),
