@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +44,7 @@ const iconMap: Record<string, React.ReactNode> = {
 export default function Dashboard() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const [generatingLevel, setGeneratingLevel] = useState<ProficiencyLevel | null>(null);
 
   const { data: settings, isLoading: settingsLoading } = useQuery<GameSettings>({
     queryKey: ["/api/settings"],
@@ -92,13 +94,16 @@ export default function Dashboard() {
 
   const generateQuestionsMutation = useMutation({
     mutationFn: async (params: { count: number; categoryId?: number; proficiencyLevel: ProficiencyLevel }): Promise<{ generatedCount: number }> => {
+      setGeneratingLevel(params.proficiencyLevel);
       const res = await apiRequest("POST", "/api/questions/generate", params);
       return res.json();
     },
     onSuccess: (data) => {
+      setGeneratingLevel(null);
       toast({ title: "Questions generated", description: `Created ${data.generatedCount} new questions.` });
     },
     onError: () => {
+      setGeneratingLevel(null);
       toast({ title: "Error", description: "Failed to generate questions.", variant: "destructive" });
     },
   });
@@ -264,7 +269,7 @@ export default function Dashboard() {
                   disabled={generateQuestionsMutation.isPending}
                   data-testid="button-generate-beginner"
                 >
-                  {generateQuestionsMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {generatingLevel === "beginner" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Generate 5 Beginner Questions
                 </Button>
                 <Button
@@ -273,6 +278,7 @@ export default function Dashboard() {
                   disabled={generateQuestionsMutation.isPending}
                   data-testid="button-generate-intermediate"
                 >
+                  {generatingLevel === "intermediate" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Generate 5 Intermediate Questions
                 </Button>
               </CardContent>
