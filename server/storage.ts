@@ -86,31 +86,52 @@ export class DatabaseStorage implements IStorage {
       return questionBank[Math.floor(Math.random() * questionBank.length)];
     }
 
-    const scoredQuestions = dbQuestions.map(row => {
+    // First, separate questions into "available" (not seen in last 30 seconds) and "cooldown"
+    const cooldownMs = 30 * 1000; // 30 seconds hard cooldown
+    const availableQuestions: typeof dbQuestions = [];
+    const cooldownQuestions: typeof dbQuestions = [];
+    
+    for (const row of dbQuestions) {
+      const lastSeen = row.question_states?.lastSeen;
+      if (lastSeen && (now.getTime() - lastSeen.getTime()) < cooldownMs) {
+        cooldownQuestions.push(row);
+      } else {
+        availableQuestions.push(row);
+      }
+    }
+    
+    // Use available questions if we have any, otherwise fall back to cooldown questions
+    const questionsToScore = availableQuestions.length > 0 ? availableQuestions : cooldownQuestions;
+    
+    const scoredQuestions = questionsToScore.map(row => {
       const q = row.questions;
       const state = row.question_states;
       let score = 100;
       
-      score -= (state?.streak || 0) * 30;
+      // Penalize based on streak (mastered questions should appear less)
+      score -= (state?.streak || 0) * 20;
       
       if (state?.lastSeen) {
         const minutesSinceLastSeen = (now.getTime() - state.lastSeen.getTime()) / (1000 * 60);
         if (minutesSinceLastSeen < 2) {
-          score -= 200;
+          score -= 150;
         } else if (minutesSinceLastSeen < 5) {
-          score -= 100;
+          score -= 80;
         } else if (minutesSinceLastSeen < 10) {
-          score -= 50;
+          score -= 40;
         } else {
+          // Bonus for not recently seen
           const hoursSinceLastSeen = minutesSinceLastSeen / 60;
           score += Math.min(hoursSinceLastSeen * 10, 50);
         }
       } else {
-        score += 50;
+        // Never seen questions get priority
+        score += 80;
       }
       
       score += (3 - q.difficulty) * 10;
-      score += Math.random() * 40;
+      // Larger random factor to ensure variety
+      score += Math.random() * 100;
       
       return { 
         question: dbQuestionToQuestion(q, state, row.categories?.displayName),
