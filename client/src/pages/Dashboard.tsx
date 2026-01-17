@@ -121,6 +121,20 @@ export default function Dashboard() {
     },
   });
 
+  const generateNewVerbsMutation = useMutation({
+    mutationFn: async (count: number): Promise<{ generatedCount: number }> => {
+      const res = await apiRequest("POST", "/api/conjugation-packs/generate", { count });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conjugation-packs"] });
+      toast({ title: "New verbs added", description: `Added ${data.generatedCount} new verb conjugation packs.` });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to generate new verbs.", variant: "destructive" });
+    },
+  });
+
   const questionTypes: { value: QuestionType; label: string; description: string }[] = [
     { value: "mcq", label: "Multiple Choice", description: "Choose from 4 options" },
     { value: "fill", label: "Fill in the Blank", description: "Type the answer" },
@@ -314,7 +328,36 @@ export default function Dashboard() {
           <TabsContent value="verbs" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Conjugation Packs</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  Add New Verbs
+                </CardTitle>
+                <CardDescription>Generate new verb conjugation packs using AI (ordered by frequency of usage)</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => generateNewVerbsMutation.mutate(3)}
+                  disabled={generateNewVerbsMutation.isPending}
+                  data-testid="button-generate-verbs"
+                >
+                  {generateNewVerbsMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Add 3 New Verbs
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => generateNewVerbsMutation.mutate(5)}
+                  disabled={generateNewVerbsMutation.isPending}
+                  data-testid="button-generate-verbs-5"
+                >
+                  {generateNewVerbsMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Add 5 New Verbs
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Conjugation Packs ({conjugationPacks?.length || 0} verbs)</CardTitle>
                 <CardDescription>Enable or disable verb conjugation practice for specific verbs</CardDescription>
               </CardHeader>
               <CardContent>

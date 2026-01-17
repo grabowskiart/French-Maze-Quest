@@ -151,6 +151,111 @@ export async function generateAndSaveQuestions(
   return savedCount;
 }
 
+const tenseSchema = z.object({
+  je: z.string(),
+  tu: z.string(),
+  il: z.string(),
+  nous: z.string(),
+  vous: z.string(),
+  ils: z.string(),
+});
+
+const conjugationPackSchema = z.object({
+  verbInfinitive: z.string(),
+  verbEnglish: z.string(),
+  group: z.number().min(1).max(3),
+  conjugations: z.object({
+    present: tenseSchema,
+    imparfait: tenseSchema.optional(),
+    "passé_composé": tenseSchema.optional(),
+    futur: tenseSchema.optional(),
+  }),
+});
+
+export async function generateConjugationPacks(count: number = 3): Promise<number> {
+  const existingPacks = await db.select({ verbInfinitive: conjugationPacks.verbInfinitive }).from(conjugationPacks);
+  const existingVerbs = existingPacks.map(p => p.verbInfinitive.toLowerCase());
+
+  const prompt = `Generate ${count} French verb conjugation packs for the most commonly used French verbs that are NOT in this list: [${existingVerbs.join(", ")}].
+
+Order them by frequency of usage in everyday French (most frequent first).
+
+For each verb, provide:
+- verbInfinitive: The verb in infinitive form (e.g., "pouvoir")
+- verbEnglish: English translation (e.g., "to be able to/can")
+- group: French verb group (1 for -er verbs, 2 for -ir verbs, 3 for irregular verbs)
+- conjugations: Object with present, imparfait, passé_composé, and futur tenses
+  - Each tense should have: je, tu, il, nous, vous, ils forms
+
+Important:
+- Only include verbs NOT already in the list above
+- Order by real-world usage frequency (most common verbs first)
+- Ensure all conjugations are accurate
+- For passé composé, include the auxiliary verb (ai, as, a, avons, avez, ont OR suis, es, est, sommes, êtes, sont)
+
+Return a JSON object with a "verbs" array containing the verb packs.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: "You are a French language expert. Generate accurate verb conjugations. Always respond with valid JSON.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.3,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("No content in response");
+    }
+
+    const parsed = JSON.parse(content);
+    const verbsArray = parsed.verbs || parsed;
+
+    if (!Array.isArray(verbsArray)) {
+      throw new Error("Response is not an array");
+    }
+
+    let savedCount = 0;
+    for (const verb of verbsArray) {
+      try {
+        const validated = conjugationPackSchema.parse(verb);
+        
+        if (existingVerbs.includes(validated.verbInfinitive.toLowerCase())) {
+          console.log(`Skipping duplicate verb: ${validated.verbInfinitive}`);
+          continue;
+        }
+
+        await db.insert(conjugationPacks).values({
+          verbInfinitive: validated.verbInfinitive,
+          verbEnglish: validated.verbEnglish,
+          group: validated.group,
+          conjugations: validated.conjugations,
+          isActive: true,
+        });
+        
+        existingVerbs.push(validated.verbInfinitive.toLowerCase());
+        savedCount++;
+      } catch (e) {
+        console.warn("Skipping invalid conjugation pack:", e);
+      }
+    }
+
+    return savedCount;
+  } catch (error) {
+    console.error("Error generating conjugation packs:", error);
+    throw error;
+  }
+}
+
 export async function generateConjugationQuestions(
   packId: number,
   count: number = 6

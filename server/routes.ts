@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { answerSchema, updateGameSettingsSchema } from "@shared/schema";
 import { z } from "zod";
-import { generateAndSaveQuestions, generateConjugationQuestions } from "./questionGenerator";
+import { generateAndSaveQuestions, generateConjugationQuestions, generateConjugationPacks } from "./questionGenerator";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -147,6 +147,23 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error generating conjugation questions:", error);
       res.status(500).json({ error: "Failed to generate conjugation questions" });
+    }
+  });
+
+  app.post("/api/conjugation-packs/generate", async (req, res) => {
+    try {
+      const schema = z.object({
+        count: z.number().min(1).max(10).default(3),
+      });
+      
+      const parsed = schema.safeParse(req.body);
+      const count = parsed.success ? parsed.data.count : 3;
+      
+      const savedCount = await generateConjugationPacks(count);
+      res.json({ success: true, generatedCount: savedCount });
+    } catch (error) {
+      console.error("Error generating conjugation packs:", error);
+      res.status(500).json({ error: "Failed to generate conjugation packs" });
     }
   });
 
