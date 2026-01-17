@@ -265,6 +265,10 @@ export async function generateConjugationQuestions(
   if (!pack) {
     throw new Error("Conjugation pack not found");
   }
+  
+  // Get the Conjugation category ID
+  const [conjugationCategory] = await db.select().from(categories).where(eq(categories.name, "conjugation")).limit(1);
+  const categoryId = conjugationCategory?.id || null;
 
   const conjugations = pack.conjugations as Conjugations;
   const pronouns = ["je", "tu", "il/elle", "nous", "vous", "ils/elles"];
@@ -279,6 +283,7 @@ export async function generateConjugationQuestions(
     difficulty: number;
     proficiencyLevel: ProficiencyLevel;
     conjugationPackId: number;
+    categoryId: number | null;
     isGenerated: boolean;
     isActive: boolean;
   }> = [];
@@ -306,6 +311,7 @@ export async function generateConjugationQuestions(
       difficulty: tense === "present" ? 1 : 2,
       proficiencyLevel: tense === "present" ? "beginner" : "intermediate",
       conjugationPackId: packId,
+      categoryId,
       isGenerated: true,
       isActive: true,
     });
