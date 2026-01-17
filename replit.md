@@ -92,6 +92,7 @@ This is an educational game that combines French language learning with maze exp
 ### Conjugation Packs
 - `GET /api/conjugation-packs` - List all conjugation packs
 - `PATCH /api/conjugation-packs/:id/toggle` - Toggle pack enabled status
+- `POST /api/conjugation-packs/generate` - Generate new verb packs using OpenAI (ordered by frequency)
 
 ### Question Generation
 - `POST /api/questions/generate` - Generate questions using OpenAI
@@ -113,8 +114,9 @@ Access the parent dashboard via the settings icon in the game header. Features:
 - **Question Types:** Toggle MCQ, Fill-in, Conjugation, Grammar questions
 - **Categories:** Enable/disable specific vocabulary categories
 - **Levels:** Choose proficiency levels (Beginner, Elementary, etc.)
-- **Conjugation:** Enable/disable verb conjugation packs
+- **Conjugation:** Enable/disable verb conjugation packs, generate new verb packs
 - **Generate Questions:** AI-powered question generation by category and difficulty
+- **Generate Verbs:** Add new verb conjugation packs ordered by frequency of usage
 
 ## User Preferences
 
