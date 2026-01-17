@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { answerSchema, updateGameSettingsSchema } from "@shared/schema";
 import { z } from "zod";
+import { generateAndSaveQuestions, generateConjugationQuestions } from "./questionGenerator";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -104,6 +105,48 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating settings:", error);
       res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  app.post("/api/questions/generate", async (req, res) => {
+    try {
+      const schema = z.object({
+        count: z.number().min(1).max(20).default(5),
+        categoryId: z.number().optional(),
+        proficiencyLevel: z.enum(["beginner", "intermediate", "advanced"]).default("beginner"),
+        questionType: z.enum(["mcq", "fill", "conjugation", "grammar"]).optional(),
+      });
+      
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request body" });
+      }
+      
+      const { count, categoryId, proficiencyLevel, questionType } = parsed.data;
+      const savedCount = await generateAndSaveQuestions(count, categoryId, proficiencyLevel, questionType);
+      
+      res.json({ success: true, generatedCount: savedCount });
+    } catch (error) {
+      console.error("Error generating questions:", error);
+      res.status(500).json({ error: "Failed to generate questions" });
+    }
+  });
+
+  app.post("/api/conjugation-packs/:id/generate", async (req, res) => {
+    try {
+      const packId = parseInt(req.params.id);
+      const schema = z.object({
+        count: z.number().min(1).max(12).default(6),
+      });
+      
+      const parsed = schema.safeParse(req.body);
+      const count = parsed.success ? parsed.data.count : 6;
+      
+      const savedCount = await generateConjugationQuestions(packId, count);
+      res.json({ success: true, generatedCount: savedCount });
+    } catch (error) {
+      console.error("Error generating conjugation questions:", error);
+      res.status(500).json({ error: "Failed to generate conjugation questions" });
     }
   });
 

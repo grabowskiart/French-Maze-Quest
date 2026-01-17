@@ -1,7 +1,8 @@
-import { Flame, Clock, Moon, Sun, HelpCircle } from "lucide-react";
+import { Flame, Clock, Moon, Sun, HelpCircle, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/ThemeProvider";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "wouter";
 
 interface GameHeaderProps {
   streak: number;
@@ -65,6 +66,17 @@ export function GameHeader({ streak, questionsAnswered, sessionTime }: GameHeade
             />
             <span>{streak}</span>
           </div>
+
+          <Link href="/dashboard">
+            <Button
+              variant="ghost"
+              size="icon"
+              data-testid="button-settings"
+              aria-label="Settings"
+            >
+              <Settings className="w-5 h-5" />
+            </Button>
+          </Link>
 
           <Button
             variant="ghost"

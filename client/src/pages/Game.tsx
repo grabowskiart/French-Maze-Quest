@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { GameHeader } from "@/components/game/GameHeader";
@@ -9,18 +9,32 @@ import { RewardChoice } from "@/components/game/RewardChoice";
 import { WinScreen } from "@/components/game/WinScreen";
 import { StartScreen } from "@/components/game/StartScreen";
 import { generateMaze, revealTiles, updateVisibility } from "@/lib/mazeGenerator";
-import type { GameState, Question, AnswerResult, Maze, Position } from "@shared/schema";
+import type { GameState, Question, AnswerResult, Maze, Position, GameSettings } from "@shared/schema";
 
-const MAZE_SIZE = 15;
-const VISIBILITY_RADIUS = 2;
-const REVEAL_RADIUS = 5;
-const MAX_STEPS = 3;
+const DEFAULT_MAZE_SIZE = 30;
+const DEFAULT_VISIBILITY_RADIUS = 4;
+const DEFAULT_REVEAL_RADIUS = 6;
+const DEFAULT_MAX_STEPS = 3;
 
 export default function Game() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [sessionTime, setSessionTime] = useState(0);
   const [feedbackResult, setFeedbackResult] = useState<AnswerResult | null>(null);
   const [maxStreak, setMaxStreak] = useState(0);
+  
+  const { data: settings } = useQuery<GameSettings>({
+    queryKey: ["/api/settings"],
+    staleTime: 60000,
+  });
+  
+  const mazeWidth = settings?.mazeWidth ?? DEFAULT_MAZE_SIZE;
+  const mazeHeight = settings?.mazeHeight ?? DEFAULT_MAZE_SIZE;
+  const visibilityRadius = settings?.visibilityRadius ?? DEFAULT_VISIBILITY_RADIUS;
+  const revealRadius = settings?.revealRadius ?? DEFAULT_REVEAL_RADIUS;
+  const maxSteps = settings?.maxStepsOnCorrect ?? DEFAULT_MAX_STEPS;
+  
+  const settingsRef = useRef({ visibilityRadius, revealRadius, maxSteps });
+  settingsRef.current = { visibilityRadius, revealRadius, maxSteps };
 
   const { data: currentQuestion, refetch: refetchQuestion, isFetching: isLoadingQuestion } = useQuery<Question>({
     queryKey: ["/api/questions/next"],
@@ -60,8 +74,8 @@ export default function Game() {
   }, [gameState?.sessionStartTime, gameState?.gamePhase]);
 
   const startGame = useCallback(() => {
-    let maze = generateMaze(MAZE_SIZE, MAZE_SIZE);
-    maze = updateVisibility(maze, maze.entrance, VISIBILITY_RADIUS);
+    let maze = generateMaze(mazeWidth, mazeHeight);
+    maze = updateVisibility(maze, maze.entrance, settingsRef.current.visibilityRadius);
 
     setGameState({
       maze,
@@ -79,7 +93,7 @@ export default function Game() {
     setMaxStreak(0);
     setFeedbackResult(null);
     queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
-  }, []);
+  }, [mazeWidth, mazeHeight]);
 
   const handleAnswerSubmit = (answer: string) => {
     if (currentQuestion) {
@@ -115,13 +129,13 @@ export default function Game() {
     setGameState({
       ...gameState,
       gamePhase: "moving",
-      remainingSteps: MAX_STEPS,
+      remainingSteps: settingsRef.current.maxSteps,
     });
   };
 
   const handleRewardReveal = () => {
     if (!gameState) return;
-    const updatedMaze = revealTiles(gameState.maze, gameState.playerPosition, REVEAL_RADIUS, false);
+    const updatedMaze = revealTiles(gameState.maze, gameState.playerPosition, settingsRef.current.revealRadius, false);
     setGameState({
       ...gameState,
       maze: updatedMaze,
@@ -141,7 +155,7 @@ export default function Game() {
     if (tile.type === "wall" || tile.fog === "hidden") return;
 
     const newPosition: Position = { x, y };
-    let updatedMaze = updateVisibility(gameState.maze, newPosition, VISIBILITY_RADIUS);
+    let updatedMaze = updateVisibility(gameState.maze, newPosition, settingsRef.current.visibilityRadius);
     const newRemainingSteps = gameState.remainingSteps - 1;
 
     if (tile.type === "exit") {

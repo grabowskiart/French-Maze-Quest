@@ -16,7 +16,7 @@ export function MazeGrid({
   remainingSteps,
   onTileClick,
 }: MazeGridProps) {
-  const viewportSize = 7;
+  const viewportSize = maze.width <= 15 ? 7 : 11;
   const halfViewport = Math.floor(viewportSize / 2);
 
   const startX = Math.max(0, Math.min(playerPosition.x - halfViewport, maze.width - viewportSize));
@@ -70,7 +70,7 @@ export function MazeGrid({
     <div className="relative w-full aspect-square max-w-[500px] mx-auto">
       <div className="absolute inset-0 rounded-2xl overflow-hidden shadow-xl border-4 border-card">
         <div
-          className="grid h-full w-full gap-0.5 bg-maze-wall/50 p-0.5"
+          className={`grid h-full w-full bg-maze-wall/50 ${maze.width > 15 ? 'gap-px p-px' : 'gap-0.5 p-0.5'}`}
           style={{
             gridTemplateColumns: `repeat(${endX - startX}, 1fr)`,
             gridTemplateRows: `repeat(${endY - startY}, 1fr)`,
