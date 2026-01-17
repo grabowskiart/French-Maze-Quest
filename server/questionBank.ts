@@ -1,4 +1,4 @@
-import type { Question } from "@shared/schema";
+import type { Question, ProficiencyLevel } from "@shared/schema";
 
 export const questionBank: Question[] = [
   {
@@ -13,6 +13,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Greetings",
+    proficiencyLevel: "beginner",
   },
   {
     id: "2",
@@ -26,6 +27,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Politeness",
+    proficiencyLevel: "beginner",
   },
   {
     id: "3",
@@ -39,6 +41,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Colors",
+    proficiencyLevel: "beginner",
   },
   {
     id: "4",
@@ -52,6 +55,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Colors",
+    proficiencyLevel: "beginner",
   },
   {
     id: "5",
@@ -65,6 +69,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Greetings",
+    proficiencyLevel: "beginner",
   },
   {
     id: "6",
@@ -78,6 +83,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Numbers",
+    proficiencyLevel: "beginner",
   },
   {
     id: "7",
@@ -91,6 +97,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Numbers",
+    proficiencyLevel: "beginner",
   },
   {
     id: "8",
@@ -103,6 +110,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Verbs",
+    proficiencyLevel: "beginner",
   },
   {
     id: "9",
@@ -115,6 +123,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Animals",
+    proficiencyLevel: "beginner",
   },
   {
     id: "10",
@@ -127,6 +136,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Animals",
+    proficiencyLevel: "beginner",
   },
   {
     id: "11",
@@ -139,6 +149,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Conjugation",
+    proficiencyLevel: "beginner",
   },
   {
     id: "12",
@@ -151,6 +162,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Conjugation",
+    proficiencyLevel: "beginner",
   },
   {
     id: "13",
@@ -164,6 +176,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Basics",
+    proficiencyLevel: "beginner",
   },
   {
     id: "14",
@@ -177,6 +190,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Basics",
+    proficiencyLevel: "beginner",
   },
   {
     id: "15",
@@ -190,6 +204,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Objects",
+    proficiencyLevel: "beginner",
   },
   {
     id: "16",
@@ -203,6 +218,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Colors",
+    proficiencyLevel: "beginner",
   },
   {
     id: "17",
@@ -216,6 +232,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Colors",
+    proficiencyLevel: "beginner",
   },
   {
     id: "18",
@@ -228,6 +245,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Food",
+    proficiencyLevel: "beginner",
   },
   {
     id: "19",
@@ -240,6 +258,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Food",
+    proficiencyLevel: "beginner",
   },
   {
     id: "20",
@@ -253,6 +272,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Politeness",
+    proficiencyLevel: "beginner",
   },
   {
     id: "21",
@@ -265,6 +285,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Conjugation",
+    proficiencyLevel: "intermediate",
   },
   {
     id: "22",
@@ -278,6 +299,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Numbers",
+    proficiencyLevel: "beginner",
   },
   {
     id: "23",
@@ -291,6 +313,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Places",
+    proficiencyLevel: "beginner",
   },
   {
     id: "24",
@@ -303,6 +326,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Animals",
+    proficiencyLevel: "intermediate",
   },
   {
     id: "25",
@@ -316,6 +340,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Introductions",
+    proficiencyLevel: "beginner",
   },
   {
     id: "26",
@@ -329,6 +354,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Expressions",
+    proficiencyLevel: "beginner",
   },
   {
     id: "27",
@@ -341,6 +367,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Conjugation",
+    proficiencyLevel: "intermediate",
   },
   {
     id: "28",
@@ -354,6 +381,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Nature",
+    proficiencyLevel: "beginner",
   },
   {
     id: "29",
@@ -366,6 +394,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "People",
+    proficiencyLevel: "beginner",
   },
   {
     id: "30",
@@ -379,6 +408,7 @@ export const questionBank: Question[] = [
     streak: 0,
     lastSeen: null,
     category: "Numbers",
+    proficiencyLevel: "beginner",
   },
 ];
 

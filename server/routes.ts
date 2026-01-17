@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { answerSchema } from "@shared/schema";
+import { answerSchema, updateGameSettingsSchema } from "@shared/schema";
+import { z } from "zod";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -33,6 +34,76 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error submitting answer:", error);
       res.status(500).json({ error: "Failed to submit answer" });
+    }
+  });
+
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const categoriesList = await storage.getCategories();
+      res.json(categoriesList);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  app.patch("/api/categories/:id/toggle", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { isActive } = z.object({ isActive: z.boolean() }).parse(req.body);
+      await storage.toggleCategory(id, isActive);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error toggling category:", error);
+      res.status(500).json({ error: "Failed to toggle category" });
+    }
+  });
+
+  app.get("/api/conjugation-packs", async (req, res) => {
+    try {
+      const packs = await storage.getConjugationPacks();
+      res.json(packs);
+    } catch (error) {
+      console.error("Error fetching conjugation packs:", error);
+      res.status(500).json({ error: "Failed to fetch conjugation packs" });
+    }
+  });
+
+  app.patch("/api/conjugation-packs/:id/toggle", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { isActive } = z.object({ isActive: z.boolean() }).parse(req.body);
+      await storage.toggleConjugationPack(id, isActive);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error toggling conjugation pack:", error);
+      res.status(500).json({ error: "Failed to toggle conjugation pack" });
+    }
+  });
+
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const settings = await storage.getSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  });
+
+  app.patch("/api/settings", async (req, res) => {
+    try {
+      const parsed = updateGameSettingsSchema.safeParse(req.body);
+      
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request body", details: parsed.error });
+      }
+      
+      const updatedSettings = await storage.updateSettings(parsed.data);
+      res.json(updatedSettings);
+    } catch (error) {
+      console.error("Error updating settings:", error);
+      res.status(500).json({ error: "Failed to update settings" });
     }
   });
 
