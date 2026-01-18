@@ -13,8 +13,8 @@ import { Footprints, Eye } from "lucide-react";
 import type { GameState, Question, AnswerResult, Maze, Position, GameSettings } from "@shared/schema";
 
 const DEFAULT_MAZE_SIZE = 30;
-const DEFAULT_VISIBILITY_RADIUS = 4;
-const DEFAULT_REVEAL_RADIUS = 6;
+const DEFAULT_VISIBILITY_RADIUS = 3;
+const DEFAULT_REVEAL_RADIUS = 3;
 const DEFAULT_MAX_STEPS = 3;
 
 export default function Game() {
@@ -199,6 +199,24 @@ export default function Game() {
     refetchQuestion();
   };
 
+  const handleMove = (direction: "up" | "down" | "left" | "right") => {
+    if (!gameState) return;
+    const { x, y } = gameState.playerPosition;
+    let newX = x;
+    let newY = y;
+
+    switch (direction) {
+      case "up": newY = y - 1; break;
+      case "down": newY = y + 1; break;
+      case "left": newX = x - 1; break;
+      case "right": newX = x + 1; break;
+    }
+
+    if (newX >= 0 && newX < gameState.maze.width && newY >= 0 && newY < gameState.maze.height) {
+      handleTileClick(newX, newY);
+    }
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!gameState || gameState.gamePhase !== "moving" || gameState.remainingSteps <= 0) return;
@@ -289,6 +307,7 @@ export default function Game() {
               isMoving={gameState.gamePhase === "moving"}
               remainingSteps={gameState.remainingSteps}
               onTileClick={handleTileClick}
+              onMove={handleMove}
             />
 
             {gameState.gamePhase === "moving" && gameState.remainingSteps > 0 && (
@@ -325,7 +344,7 @@ export default function Game() {
                   Time to Move!
                 </h2>
                 <p className="text-muted-foreground mb-4">
-                  Click on adjacent tiles or use arrow keys to move.
+                  Use the arrow buttons or keyboard arrows to navigate.
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Press Enter or click "Done moving early" when finished.

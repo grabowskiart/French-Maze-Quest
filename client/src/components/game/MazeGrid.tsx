@@ -1,4 +1,5 @@
-import { Home, Trophy, User } from "lucide-react";
+import { Home, Trophy, User, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { Maze, Position } from "@shared/schema";
 
 interface MazeGridProps {
@@ -7,6 +8,7 @@ interface MazeGridProps {
   isMoving: boolean;
   remainingSteps: number;
   onTileClick: (x: number, y: number) => void;
+  onMove?: (direction: "up" | "down" | "left" | "right") => void;
 }
 
 export function MazeGrid({
@@ -15,32 +17,10 @@ export function MazeGrid({
   isMoving,
   remainingSteps,
   onTileClick,
+  onMove,
 }: MazeGridProps) {
-  const viewportSize = maze.width <= 15 ? 7 : 11;
-  const halfViewport = Math.floor(viewportSize / 2);
-
-  const startX = Math.max(0, Math.min(playerPosition.x - halfViewport, maze.width - viewportSize));
-  const startY = Math.max(0, Math.min(playerPosition.y - halfViewport, maze.height - viewportSize));
-  const endX = Math.min(startX + viewportSize, maze.width);
-  const endY = Math.min(startY + viewportSize, maze.height);
-
-  const visibleTiles: typeof maze.tiles = [];
-  for (let y = startY; y < endY; y++) {
-    const row: typeof maze.tiles[0] = [];
-    for (let x = startX; x < endX; x++) {
-      row.push(maze.tiles[y][x]);
-    }
-    visibleTiles.push(row);
-  }
-
-  const isAdjacent = (x: number, y: number) => {
-    const dx = Math.abs(x - playerPosition.x);
-    const dy = Math.abs(y - playerPosition.y);
-    return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
-  };
-
   const getTileClasses = (tile: typeof maze.tiles[0][0], isPlayer: boolean) => {
-    const baseClasses = "relative flex items-center justify-center transition-all duration-300";
+    const baseClasses = "relative flex items-center justify-center";
 
     if (tile.fog === "hidden") {
       return `${baseClasses} bg-maze-fog`;
@@ -58,80 +38,130 @@ export function MazeGrid({
     }
 
     const visibilityClass = tile.fog === "seen" ? "opacity-80" : "";
-    const clickableClass =
-      isMoving && isAdjacent(tile.x, tile.y) && remainingSteps > 0
-        ? "cursor-pointer ring-2 ring-primary ring-offset-2 ring-offset-background"
-        : "";
 
-    return `${baseClasses} ${bgClass} ${visibilityClass} ${clickableClass}`;
+    return `${baseClasses} ${bgClass} ${visibilityClass}`;
+  };
+
+  const canMoveInDirection = (direction: "up" | "down" | "left" | "right") => {
+    if (!isMoving || remainingSteps <= 0) return false;
+    
+    let newX = playerPosition.x;
+    let newY = playerPosition.y;
+    
+    switch (direction) {
+      case "up": newY -= 1; break;
+      case "down": newY += 1; break;
+      case "left": newX -= 1; break;
+      case "right": newX += 1; break;
+    }
+    
+    if (newX < 0 || newX >= maze.width || newY < 0 || newY >= maze.height) return false;
+    
+    const tile = maze.tiles[newY][newX];
+    return tile.type !== "wall" && tile.fog !== "hidden";
   };
 
   return (
-    <div className="relative w-full aspect-square max-w-[500px] mx-auto">
-      <div className="absolute inset-0 rounded-2xl overflow-hidden shadow-xl border-4 border-card">
-        <div
-          className={`grid h-full w-full bg-maze-wall/50 ${maze.width > 15 ? 'gap-px p-px' : 'gap-0.5 p-0.5'}`}
-          style={{
-            gridTemplateColumns: `repeat(${endX - startX}, 1fr)`,
-            gridTemplateRows: `repeat(${endY - startY}, 1fr)`,
-          }}
+    <div className="flex flex-col items-center gap-2">
+      {/* Up arrow */}
+      <Button
+        size="icon"
+        variant={canMoveInDirection("up") ? "default" : "outline"}
+        disabled={!canMoveInDirection("up")}
+        onClick={() => onMove?.("up")}
+        data-testid="button-move-up"
+        className="h-10 w-10"
+      >
+        <ChevronUp className="h-6 w-6" />
+      </Button>
+
+      <div className="flex items-center gap-2">
+        {/* Left arrow */}
+        <Button
+          size="icon"
+          variant={canMoveInDirection("left") ? "default" : "outline"}
+          disabled={!canMoveInDirection("left")}
+          onClick={() => onMove?.("left")}
+          data-testid="button-move-left"
+          className="h-10 w-10"
         >
-          {visibleTiles.map((row, rowIndex) =>
-            row.map((tile, colIndex) => {
-              const isPlayer =
-                tile.x === playerPosition.x && tile.y === playerPosition.y;
-              const isEntrance =
-                tile.x === maze.entrance.x && tile.y === maze.entrance.y;
-              const isExit = tile.x === maze.exit.x && tile.y === maze.exit.y;
-              const canClick =
-                isMoving &&
-                isAdjacent(tile.x, tile.y) &&
-                tile.type !== "wall" &&
-                tile.fog !== "hidden" &&
-                remainingSteps > 0;
+          <ChevronLeft className="h-6 w-6" />
+        </Button>
 
-              return (
-                <div
-                  key={`${tile.x}-${tile.y}`}
-                  className={getTileClasses(tile, isPlayer)}
-                  onClick={() => canClick && onTileClick(tile.x, tile.y)}
-                  data-testid={`tile-${tile.x}-${tile.y}`}
-                  role={canClick ? "button" : undefined}
-                  tabIndex={canClick ? 0 : undefined}
-                  onKeyDown={(e) => {
-                    if (canClick && (e.key === "Enter" || e.key === " ")) {
-                      onTileClick(tile.x, tile.y);
-                    }
-                  }}
-                >
-                  {tile.fog !== "hidden" && (
-                    <>
-                      {isPlayer && (
-                        <div className="absolute inset-1 flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg animate-bounce z-10">
-                          <User className="w-4 h-4 sm:w-5 sm:h-5" />
-                        </div>
-                      )}
-                      {isEntrance && !isPlayer && (
-                        <Home className="w-4 h-4 sm:w-5 sm:h-5 text-maze-entrance" />
-                      )}
-                      {isExit && !isPlayer && (
-                        <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-maze-exit" />
-                      )}
-                    </>
-                  )}
+        {/* Maze grid - full size with tiny tiles */}
+        <div className="relative w-[400px] h-[400px] rounded-lg overflow-hidden shadow-xl border-2 border-card">
+          <div
+            className="grid h-full w-full bg-maze-wall/50"
+            style={{
+              gridTemplateColumns: `repeat(${maze.width}, 1fr)`,
+              gridTemplateRows: `repeat(${maze.height}, 1fr)`,
+            }}
+          >
+            {maze.tiles.map((row, rowIndex) =>
+              row.map((tile, colIndex) => {
+                const isPlayer =
+                  tile.x === playerPosition.x && tile.y === playerPosition.y;
+                const isEntrance =
+                  tile.x === maze.entrance.x && tile.y === maze.entrance.y;
+                const isExit = tile.x === maze.exit.x && tile.y === maze.exit.y;
 
-                  {tile.fog === "hidden" && (
-                    <div className="absolute inset-0 bg-gradient-to-br from-maze-fog/90 to-maze-fog" />
-                  )}
-                </div>
-              );
-            })
-          )}
+                return (
+                  <div
+                    key={`${tile.x}-${tile.y}`}
+                    className={getTileClasses(tile, isPlayer)}
+                    data-testid={`tile-${tile.x}-${tile.y}`}
+                  >
+                    {tile.fog !== "hidden" && (
+                      <>
+                        {isPlayer && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-primary rounded-sm z-10" />
+                        )}
+                        {isEntrance && !isPlayer && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 bg-maze-entrance rounded-full" />
+                          </div>
+                        )}
+                        {isExit && !isPlayer && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 bg-maze-exit rounded-full" />
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
+
+        {/* Right arrow */}
+        <Button
+          size="icon"
+          variant={canMoveInDirection("right") ? "default" : "outline"}
+          disabled={!canMoveInDirection("right")}
+          onClick={() => onMove?.("right")}
+          data-testid="button-move-right"
+          className="h-10 w-10"
+        >
+          <ChevronRight className="h-6 w-6" />
+        </Button>
       </div>
 
+      {/* Down arrow */}
+      <Button
+        size="icon"
+        variant={canMoveInDirection("down") ? "default" : "outline"}
+        disabled={!canMoveInDirection("down")}
+        onClick={() => onMove?.("down")}
+        data-testid="button-move-down"
+        className="h-10 w-10"
+      >
+        <ChevronDown className="h-6 w-6" />
+      </Button>
+
       {isMoving && remainingSteps > 0 && (
-        <div className="absolute -bottom-12 left-1/2 -translate-x-1/2">
+        <div className="mt-2">
           <div className="bg-primary text-primary-foreground px-4 py-2 rounded-full font-display font-bold text-sm shadow-lg">
             {remainingSteps} step{remainingSteps !== 1 ? "s" : ""} left
           </div>
