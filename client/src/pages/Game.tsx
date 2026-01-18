@@ -9,7 +9,7 @@ import { WinScreen } from "@/components/game/WinScreen";
 import { StartScreen } from "@/components/game/StartScreen";
 import { generateMaze, revealTiles, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
-import { Footprints, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import type { GameState, Question, AnswerResult, Maze, Position, GameSettings } from "@shared/schema";
 
 const DEFAULT_MAZE_SIZE = 30;
@@ -109,9 +109,11 @@ export default function Game() {
     if (!gameState || !feedbackResult) return;
 
     if (feedbackResult.correct) {
+      // Go directly to moving mode
       setGameState({
         ...gameState,
-        gamePhase: "reward",
+        gamePhase: "moving",
+        remainingSteps: settingsRef.current.maxSteps,
       });
     } else {
       const updatedMaze = revealTiles(gameState.maze, gameState.playerPosition, 1, false);
@@ -125,22 +127,14 @@ export default function Game() {
     setFeedbackResult(null);
   };
 
-  const handleRewardMove = () => {
-    if (!gameState) return;
-    setGameState({
-      ...gameState,
-      gamePhase: "moving",
-      remainingSteps: settingsRef.current.maxSteps,
-    });
-  };
-
-  const handleRewardReveal = () => {
+  const handleRevealInstead = () => {
     if (!gameState) return;
     const updatedMaze = revealTiles(gameState.maze, gameState.playerPosition, settingsRef.current.revealRadius, false);
     setGameState({
       ...gameState,
       maze: updatedMaze,
       gamePhase: "question",
+      remainingSteps: 0,
     });
     refetchQuestion();
   };
@@ -278,29 +272,6 @@ export default function Game() {
       <main className="max-w-6xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <div className="order-2 lg:order-1">
-            {gameState.gamePhase === "reward" && (
-              <div className="flex gap-4 justify-center mb-4">
-                <Button
-                  onClick={handleRewardMove}
-                  variant="default"
-                  className="flex items-center gap-2 px-6 py-3"
-                  data-testid="button-reward-move"
-                >
-                  <Footprints className="w-5 h-5" />
-                  <span className="font-display font-bold">Move</span>
-                </Button>
-                <Button
-                  onClick={handleRewardReveal}
-                  variant="secondary"
-                  className="flex items-center gap-2 px-6 py-3"
-                  data-testid="button-reward-reveal"
-                >
-                  <Eye className="w-5 h-5" />
-                  <span className="font-display font-bold">Reveal</span>
-                </Button>
-              </div>
-            )}
-
             <MazeGrid
               maze={gameState.maze}
               playerPosition={gameState.playerPosition}
@@ -311,7 +282,16 @@ export default function Game() {
             />
 
             {gameState.gamePhase === "moving" && gameState.remainingSteps > 0 && (
-              <div className="mt-16 flex justify-center">
+              <div className="mt-8 flex flex-col items-center gap-3">
+                <Button
+                  onClick={handleRevealInstead}
+                  variant="secondary"
+                  className="flex items-center gap-2"
+                  data-testid="button-reveal-instead"
+                >
+                  <Eye className="w-4 h-4" />
+                  <span>Reveal instead</span>
+                </Button>
                 <button
                   onClick={handleFinishMoving}
                   className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
