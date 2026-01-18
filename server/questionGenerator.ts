@@ -119,9 +119,26 @@ export async function generateAndSaveQuestions(
   questionType?: QuestionType
 ): Promise<number> {
   let categoryName: string | undefined;
+  let assignedCategoryId: number | null = null;
+  
   if (categoryId) {
+    // Specific category requested
     const [category] = await db.select().from(categories).where(eq(categories.id, categoryId)).limit(1);
     categoryName = category?.displayName;
+    assignedCategoryId = categoryId;
+  } else {
+    // No specific category - get all active categories and pick randomly from them
+    const activeCategories = await db.select().from(categories).where(eq(categories.isActive, true));
+    
+    if (activeCategories.length > 0) {
+      // Create a comma-separated list of active category names for the prompt
+      const categoryNames = activeCategories.map(c => c.displayName).join(", ");
+      categoryName = categoryNames;
+      
+      // Pick a random category to assign the questions to
+      const randomCategory = activeCategories[Math.floor(Math.random() * activeCategories.length)];
+      assignedCategoryId = randomCategory.id;
+    }
   }
 
   const generated = await generateQuestions(count, categoryName, proficiencyLevel, questionType);
@@ -138,7 +155,7 @@ export async function generateAndSaveQuestions(
         explanation: q.explanation,
         difficulty: q.difficulty,
         proficiencyLevel,
-        categoryId: categoryId || null,
+        categoryId: assignedCategoryId,
         isGenerated: true,
         isActive: true,
       });
