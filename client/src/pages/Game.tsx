@@ -283,15 +283,17 @@ export default function Game() {
 
             {gameState.gamePhase === "moving" && gameState.remainingSteps > 0 && (
               <div className="mt-8 flex flex-col items-center gap-3">
-                <Button
-                  onClick={handleRevealInstead}
-                  variant="secondary"
-                  className="flex items-center gap-2"
-                  data-testid="button-reveal-instead"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>Reveal instead</span>
-                </Button>
+                {gameState.remainingSteps === settingsRef.current.maxSteps && (
+                  <Button
+                    onClick={handleRevealInstead}
+                    variant="secondary"
+                    className="flex items-center gap-2"
+                    data-testid="button-reveal-instead"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>Reveal instead</span>
+                  </Button>
+                )}
                 <button
                   onClick={handleFinishMoving}
                   className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
