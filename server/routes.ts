@@ -135,14 +135,8 @@ export async function registerRoutes(
   app.post("/api/conjugation-packs/:id/generate", async (req, res) => {
     try {
       const packId = parseInt(req.params.id);
-      const schema = z.object({
-        count: z.number().min(1).max(12).default(6),
-      });
-      
-      const parsed = schema.safeParse(req.body);
-      const count = parsed.success ? parsed.data.count : 6;
-      
-      const savedCount = await generateConjugationQuestions(packId, count);
+      // Generates ALL possible conjugation questions for the pack (all pronouns × all tenses)
+      const savedCount = await generateConjugationQuestions(packId);
       res.json({ success: true, generatedCount: savedCount });
     } catch (error) {
       console.error("Error generating conjugation questions:", error);

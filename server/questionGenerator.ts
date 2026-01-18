@@ -242,6 +242,8 @@ Return a JSON object with a "verbs" array containing the verb packs.`;
     }
 
     let savedCount = 0;
+    const newPackIds: number[] = [];
+    
     for (const verb of verbsArray) {
       try {
         const validated = conjugationPackSchema.parse(verb);
@@ -251,18 +253,32 @@ Return a JSON object with a "verbs" array containing the verb packs.`;
           continue;
         }
 
-        await db.insert(conjugationPacks).values({
+        const [insertedPack] = await db.insert(conjugationPacks).values({
           verbInfinitive: validated.verbInfinitive,
           verbEnglish: validated.verbEnglish,
           group: validated.group,
           conjugations: validated.conjugations,
           isActive: true,
-        });
+        }).returning({ id: conjugationPacks.id });
+        
+        if (insertedPack) {
+          newPackIds.push(insertedPack.id);
+        }
         
         existingVerbs.push(validated.verbInfinitive.toLowerCase());
         savedCount++;
       } catch (e) {
         console.warn("Skipping invalid conjugation pack:", e);
+      }
+    }
+
+    // Automatically generate ALL conjugation questions for each new pack
+    for (const packId of newPackIds) {
+      try {
+        const questionsGenerated = await generateConjugationQuestions(packId);
+        console.log(`Generated ${questionsGenerated} conjugation questions for pack ${packId}`);
+      } catch (e) {
+        console.warn(`Failed to generate questions for pack ${packId}:`, e);
       }
     }
 
@@ -274,8 +290,7 @@ Return a JSON object with a "verbs" array containing the verb packs.`;
 }
 
 export async function generateConjugationQuestions(
-  packId: number,
-  count: number = 6
+  packId: number
 ): Promise<number> {
   const [pack] = await db.select().from(conjugationPacks).where(eq(conjugationPacks.id, packId)).limit(1);
   
@@ -288,7 +303,14 @@ export async function generateConjugationQuestions(
   const categoryId = conjugationCategory?.id || null;
 
   const conjugations = pack.conjugations as Conjugations;
-  const pronouns = ["je", "tu", "il/elle", "nous", "vous", "ils/elles"];
+  const pronounsMap = [
+    { display: "je", key: "je" },
+    { display: "tu", key: "tu" },
+    { display: "il/elle", key: "il" },
+    { display: "nous", key: "nous" },
+    { display: "vous", key: "vous" },
+    { display: "ils/elles", key: "ils" },
+  ];
   const tenses = Object.keys(conjugations) as (keyof Conjugations)[];
   
   const questionsToInsert: Array<{
@@ -305,33 +327,31 @@ export async function generateConjugationQuestions(
     isActive: boolean;
   }> = [];
 
-  for (let i = 0; i < count && i < pronouns.length; i++) {
-    const pronoun = pronouns[i];
-    const tense = tenses[Math.floor(Math.random() * tenses.length)];
+  // Generate ALL combinations of pronouns × tenses
+  for (const tense of tenses) {
     const conjugation = conjugations[tense];
-    
     if (!conjugation) continue;
-    
-    const pronounKey = pronoun.replace("/elle", "").replace("/elles", "") as keyof typeof conjugation;
-    const answer = conjugation[pronounKey];
-    
-    if (!answer) continue;
     
     const tenseDisplay = tense === "passé_composé" ? "passé composé" : tense;
     
-    questionsToInsert.push({
-      type: "conjugation",
-      question: `Conjugate '${pack.verbInfinitive}' (${pack.verbEnglish}) for '${pronoun}' in ${tenseDisplay}`,
-      correctAnswer: answer,
-      hint: `Remember the ${tenseDisplay} conjugation pattern for ${pack.verbInfinitive}!`,
-      explanation: `'${pronoun.charAt(0).toUpperCase() + pronoun.slice(1)} ${answer}' is the ${tenseDisplay} form of ${pack.verbInfinitive} (${pack.verbEnglish}).`,
-      difficulty: tense === "present" ? 1 : 2,
-      proficiencyLevel: tense === "present" ? "beginner" : "intermediate",
-      conjugationPackId: packId,
-      categoryId,
-      isGenerated: true,
-      isActive: true,
-    });
+    for (const { display: pronoun, key: pronounKey } of pronounsMap) {
+      const answer = conjugation[pronounKey as keyof typeof conjugation];
+      if (!answer) continue;
+      
+      questionsToInsert.push({
+        type: "conjugation",
+        question: `Conjugate '${pack.verbInfinitive}' (${pack.verbEnglish}) for '${pronoun}' in ${tenseDisplay}`,
+        correctAnswer: answer,
+        hint: `Remember the ${tenseDisplay} conjugation pattern for ${pack.verbInfinitive}!`,
+        explanation: `'${pronoun.charAt(0).toUpperCase() + pronoun.slice(1)} ${answer}' is the ${tenseDisplay} form of ${pack.verbInfinitive} (${pack.verbEnglish}).`,
+        difficulty: tense === "present" ? 1 : 2,
+        proficiencyLevel: tense === "present" ? "beginner" : "intermediate",
+        conjugationPackId: packId,
+        categoryId,
+        isGenerated: true,
+        isActive: true,
+      });
+    }
   }
 
   let savedCount = 0;
