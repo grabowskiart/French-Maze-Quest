@@ -1,7 +1,7 @@
 import type { Question, QuestionType, ProficiencyLevel, Category, ConjugationPack, GameSettings, DbQuestion, QuestionState as DbQuestionState } from "@shared/schema";
 import { categories, conjugationPacks, questions, questionStates, gameSettings } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray, sql, desc, asc, or } from "drizzle-orm";
+import { eq, and, inArray, sql, desc, asc, or, isNull } from "drizzle-orm";
 import { questionBank, checkAnswer } from "./questionBank";
 
 interface QuestionStateMap {
@@ -69,7 +69,7 @@ export class DatabaseStorage implements IStorage {
             ? inArray(questions.proficiencyLevel, settings.enabledProficiencyLevels)
             : sql`true`,
           enabledCategories.length 
-            ? inArray(questions.categoryId, enabledCategories)
+            ? or(inArray(questions.categoryId, enabledCategories), isNull(questions.categoryId))
             : sql`true`,
           or(
             sql`${questions.type} != 'conjugation'`,
