@@ -52,9 +52,9 @@
   --success-foreground: 0 0% 100%;
   --warning: 45 95% 55%;
   --warning-foreground: 45 95% 15%;
-  --maze-wall: 220 30% 25%;
-  --maze-path: 45 40% 92%;
-  --maze-fog: 220 30% 20%;
+  --maze-wall: 220 40% 15%;
+  --maze-path: 45 30% 85%;
+  --maze-fog: 220 30% 12%;
   --maze-entrance: 170 70% 45%;
   --maze-exit: 45 95% 55%;
   --shadow-2xs: 0px 2px 0px 0px hsl(210 5% 12% / 0.00);
@@ -141,9 +141,9 @@
   --success-foreground: 0 0% 100%;
   --warning: 45 90% 55%;
   --warning-foreground: 45 95% 10%;
-  --maze-wall: 230 30% 35%;
-  --maze-path: 230 20% 28%;
-  --maze-fog: 230 30% 8%;
+  --maze-wall: 230 40% 12%;
+  --maze-path: 45 25% 70%;
+  --maze-fog: 230 40% 6%;
   --maze-entrance: 170 65% 50%;
   --maze-exit: 45 90% 55%;
   --shadow-2xs: 0px 2px 0px 0px hsl(210 5% 95% / 0.00);
