@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -64,7 +64,9 @@ export const questions = pgTable("questions", {
   isGenerated: boolean("is_generated").default(false).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  uniqueQuestion: uniqueIndex("questions_unique_idx").on(table.question, table.type, table.correctAnswer),
+}));
 
 export const questionStates = pgTable("question_states", {
   id: serial("id").primaryKey(),
