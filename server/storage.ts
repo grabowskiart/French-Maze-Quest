@@ -87,7 +87,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // First, separate questions into "available" (not seen in last 30 seconds) and "cooldown"
-    const cooldownMs = 30 * 1000; // 30 seconds hard cooldown
+    const cooldownMs = 60 * 1000; // 60 seconds hard cooldown
     const availableQuestions: typeof dbQuestions = [];
     const cooldownQuestions: typeof dbQuestions = [];
     
