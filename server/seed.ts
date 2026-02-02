@@ -186,7 +186,7 @@ async function seed() {
       enabledConjugationPackIds: [],
       mazeWidth: 30,
       mazeHeight: 30,
-      visibilityRadius: 4,
+      visibilityRadius: 1,
       revealRadius: 6,
       maxStepsOnCorrect: 3,
       autoGenerateQuestions: true,

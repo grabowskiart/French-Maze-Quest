@@ -13,7 +13,7 @@ import { Eye } from "lucide-react";
 import type { GameState, Question, AnswerResult, Maze, Position, GameSettings } from "@shared/schema";
 
 const DEFAULT_MAZE_SIZE = 30;
-const DEFAULT_VISIBILITY_RADIUS = 3;
+const DEFAULT_VISIBILITY_RADIUS = 1;
 const DEFAULT_REVEAL_RADIUS = 3;
 const DEFAULT_MAX_STEPS = 3;
 

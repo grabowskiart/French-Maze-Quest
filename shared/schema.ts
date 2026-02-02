@@ -86,7 +86,7 @@ export const gameSettings = pgTable("game_settings", {
   enabledConjugationPackIds: jsonb("enabled_conjugation_pack_ids").default([]).notNull().$type<number[]>(),
   mazeWidth: integer("maze_width").default(30).notNull(),
   mazeHeight: integer("maze_height").default(30).notNull(),
-  visibilityRadius: integer("visibility_radius").default(4).notNull(),
+  visibilityRadius: integer("visibility_radius").default(1).notNull(),
   revealRadius: integer("reveal_radius").default(6).notNull(),
   maxStepsOnCorrect: integer("max_steps_on_correct").default(3).notNull(),
   autoGenerateQuestions: boolean("auto_generate_questions").default(true).notNull(),
