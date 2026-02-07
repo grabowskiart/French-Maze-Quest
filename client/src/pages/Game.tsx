@@ -10,7 +10,7 @@ import { StartScreen } from "@/components/game/StartScreen";
 import { generateMaze, revealTiles, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
-import type { GameState, Question, AnswerResult, Maze, Position, GameSettings } from "@shared/schema";
+import type { GameState, PublicQuestion, AnswerResult, Maze, Position, GameSettings } from "@shared/schema";
 
 const DEFAULT_MAZE_SIZE = 30;
 const DEFAULT_VISIBILITY_RADIUS = 1;
@@ -37,7 +37,7 @@ export default function Game() {
   const settingsRef = useRef({ visibilityRadius, revealRadius, maxSteps });
   settingsRef.current = { visibilityRadius, revealRadius, maxSteps };
 
-  const { data: currentQuestion, refetch: refetchQuestion, isFetching: isLoadingQuestion } = useQuery<Question>({
+  const { data: currentQuestion, refetch: refetchQuestion, isFetching: isLoadingQuestion } = useQuery<PublicQuestion>({
     queryKey: ["/api/questions/next"],
     enabled: gameState?.gamePhase === "question",
     staleTime: 0,

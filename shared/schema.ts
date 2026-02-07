@@ -160,6 +160,19 @@ export interface Question {
   proficiencyLevel: ProficiencyLevel;
 }
 
+// Safe subset for client delivery. Excludes answer/feedback fields that can reveal solutions.
+export interface PublicQuestion {
+  id: string;
+  type: QuestionType;
+  question: string;
+  options?: string[];
+  difficulty: number;
+  streak: number;
+  lastSeen: number | null;
+  category: string;
+  proficiencyLevel: ProficiencyLevel;
+}
+
 export interface GameState {
   maze: Maze;
   playerPosition: Position;
