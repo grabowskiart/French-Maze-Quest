@@ -302,7 +302,7 @@ export default function Game() {
   };
 
   const handleTileClick = (x: number, y: number) => {
-    if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice) return;
+    if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || feedbackResult) return;
 
     const dx = Math.abs(x - gameState.playerPosition.x);
     const dy = Math.abs(y - gameState.playerPosition.y);
@@ -396,7 +396,7 @@ export default function Game() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice) return;
+      if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || feedbackResult) return;
 
       const { x, y } = gameState.playerPosition;
       let newX = x;
@@ -435,7 +435,7 @@ export default function Game() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState, weaponChoice, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
+  }, [gameState, weaponChoice, feedbackResult, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
 
   if (!gameState || gameState.gamePhase === "start") {
     return <StartScreen onStart={startGame} />;
