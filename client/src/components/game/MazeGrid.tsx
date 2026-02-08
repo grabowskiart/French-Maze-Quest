@@ -1,4 +1,4 @@
-import { Home, Trophy, User, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Maze, Position } from "@shared/schema";
 
@@ -7,6 +7,7 @@ interface MazeGridProps {
   playerPosition: Position;
   isMoving: boolean;
   remainingSteps: number;
+  hasStepLimit?: boolean;
   onTileClick: (x: number, y: number) => void;
   onMove?: (direction: "up" | "down" | "left" | "right") => void;
 }
@@ -16,6 +17,7 @@ export function MazeGrid({
   playerPosition,
   isMoving,
   remainingSteps,
+  hasStepLimit = true,
   onTileClick,
   onMove,
 }: MazeGridProps) {
@@ -43,7 +45,8 @@ export function MazeGrid({
   };
 
   const canMoveInDirection = (direction: "up" | "down" | "left" | "right") => {
-    if (!isMoving || remainingSteps <= 0) return false;
+    if (!isMoving) return false;
+    if (hasStepLimit && remainingSteps <= 0) return false;
     
     let newX = playerPosition.x;
     let newY = playerPosition.y;
@@ -160,7 +163,7 @@ export function MazeGrid({
         <ChevronDown className="h-6 w-6" />
       </Button>
 
-      {isMoving && remainingSteps > 0 && (
+      {isMoving && hasStepLimit && remainingSteps > 0 && (
         <div className="mt-2">
           <div className="bg-primary text-primary-foreground px-4 py-2 rounded-full font-display font-bold text-sm shadow-lg">
             {remainingSteps} step{remainingSteps !== 1 ? "s" : ""} left
