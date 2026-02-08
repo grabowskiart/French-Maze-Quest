@@ -8,10 +8,9 @@ import type { AnswerResult } from "@shared/schema";
 interface FeedbackModalProps {
   result: AnswerResult;
   onContinue: () => void;
-  onRevealArea?: () => void;
 }
 
-export function FeedbackModal({ result, onContinue, onRevealArea }: FeedbackModalProps) {
+export function FeedbackModal({ result, onContinue }: FeedbackModalProps) {
   useEffect(() => {
     if (result.correct) {
       confetti({
@@ -75,16 +74,6 @@ export function FeedbackModal({ result, onContinue, onRevealArea }: FeedbackModa
               </div>
             )}
 
-            {result.correct && onRevealArea && (
-              <Button
-                onClick={onRevealArea}
-                variant="secondary"
-                className="w-full h-12 text-lg font-bold font-display mt-2"
-                data-testid="button-reveal-area"
-              >
-                Reveal 5 Tiles
-              </Button>
-            )}
 
             <Button
               onClick={onContinue}
