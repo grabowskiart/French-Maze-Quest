@@ -319,6 +319,9 @@ export default function Game() {
     setFeedbackResult(null);
   };
 
+
+  const isFeedbackModalOpen = Boolean(feedbackResult);
+  const isRevealQuestionActive = Boolean(weaponChoice);
   const handleUsePotion = () => {
     if (!encounter || potions <= 0 || !gameState || gameState.gamePhase !== "combat") return;
     setPotions((prev) => prev - 1);
@@ -330,7 +333,7 @@ export default function Game() {
   };
 
   const handleTileClick = (x: number, y: number) => {
-    if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || feedbackResult) return;
+    if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen) return;
 
     const dx = Math.abs(x - gameState.playerPosition.x);
     const dy = Math.abs(y - gameState.playerPosition.y);
@@ -424,7 +427,7 @@ export default function Game() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || feedbackResult) return;
+      if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen) return;
 
       const { x, y } = gameState.playerPosition;
       let newX = x;
@@ -463,7 +466,7 @@ export default function Game() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState, weaponChoice, feedbackResult, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
+  }, [gameState, isRevealQuestionActive, isFeedbackModalOpen, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
 
   if (!gameState || gameState.gamePhase === "start") {
     return <StartScreen onStart={startGame} />;
