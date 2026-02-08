@@ -405,7 +405,7 @@ export default function Game() {
   };
 
   const handleMove = (direction: "up" | "down" | "left" | "right") => {
-    if (!gameState) return;
+    if (!gameState || isFeedbackModalOpen || isRevealQuestionActive) return;
     const { x, y } = gameState.playerPosition;
     let newX = x;
     let newY = y;
