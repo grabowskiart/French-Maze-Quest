@@ -160,6 +160,19 @@ export interface Question {
   proficiencyLevel: ProficiencyLevel;
 }
 
+// Safe subset for client delivery. Excludes answer/feedback fields that can reveal solutions.
+export interface PublicQuestion {
+  id: string;
+  type: QuestionType;
+  question: string;
+  options?: string[];
+  difficulty: number;
+  streak: number;
+  lastSeen: number | null;
+  category: string;
+  proficiencyLevel: ProficiencyLevel;
+}
+
 export interface GameState {
   maze: Maze;
   playerPosition: Position;
@@ -168,7 +181,7 @@ export interface GameState {
   questionsAnswered: number;
   correctAnswers: number;
   sessionStartTime: number;
-  gamePhase: "question" | "reward" | "moving" | "won" | "start";
+  gamePhase: "question" | "reward" | "moving" | "exploring" | "combat" | "won" | "start";
   remainingSteps: number;
   lastAnswerCorrect: boolean | null;
 }
