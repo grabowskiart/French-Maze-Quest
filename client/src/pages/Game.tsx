@@ -7,7 +7,7 @@ import { QuestionPanel } from "@/components/game/QuestionPanel";
 import { FeedbackModal } from "@/components/game/FeedbackModal";
 import { WinScreen } from "@/components/game/WinScreen";
 import { StartScreen } from "@/components/game/StartScreen";
-import { generateMaze, revealTiles, updateVisibility } from "@/lib/mazeGenerator";
+import { generateMaze, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
