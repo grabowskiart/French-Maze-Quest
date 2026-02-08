@@ -103,6 +103,30 @@ function buildPickups(maze: Maze): Record<string, Pickup> {
   return pickups;
 }
 
+
+function revealArea(maze: Maze, center: Position, radius: number): Maze {
+  const newTiles = maze.tiles.map((row) => row.map((tile) => ({ ...tile })));
+
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const x = center.x + dx;
+      const y = center.y + dy;
+
+      if (x >= 0 && x < maze.width && y >= 0 && y < maze.height) {
+        const distance = Math.abs(dx) + Math.abs(dy);
+        if (distance <= radius && newTiles[y][x].fog === "hidden") {
+          newTiles[y][x].fog = "seen";
+        }
+      }
+    }
+  }
+
+  return {
+    ...maze,
+    tiles: newTiles,
+  };
+}
+
 export default function Game() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [sessionTime, setSessionTime] = useState(0);
@@ -189,8 +213,13 @@ export default function Game() {
 
       setGameState((prev) => {
         if (!prev) return prev;
+        const nextMaze = result.correct && revealArmedRef.current
+          ? revealTiles(prev.maze, prev.playerPosition, 5, false)
+          : prev.maze;
+
         return {
           ...prev,
+          maze: nextMaze,
           streak: newStreak,
           questionsAnswered: prev.questionsAnswered + 1,
           correctAnswers: result.correct ? prev.correctAnswers + 1 : prev.correctAnswers,
@@ -199,9 +228,15 @@ export default function Game() {
       });
 
       if (result.correct) {
+        const usedRevealBonus = revealArmedRef.current;
+        if (usedRevealBonus) {
+          setIsRevealArmed(false);
+        }
+
         const dmg = Math.max(1, weaponRef.current.damage);
         const nextHp = encounterRef.current.hp - dmg;
-        setCombatMessage(`Direct hit with ${weaponRef.current.name}! ${encounterRef.current.name} has ${Math.max(nextHp, 0)} HP left.`);
+        const revealMessage = usedRevealBonus ? " Reveal bonus activated: nearby tiles uncovered." : "";
+        setCombatMessage(`Direct hit with ${weaponRef.current.name}! ${encounterRef.current.name} has ${Math.max(nextHp, 0)} HP left.${revealMessage}`);
         if (nextHp <= 0) {
           setEncounter(null);
           setGameState((prev) => prev ? { ...prev, gamePhase: "exploring" } : prev);
