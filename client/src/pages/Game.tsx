@@ -161,12 +161,15 @@ export default function Game() {
       const newStreak = result.correct ? gameState.streak + 1 : 0;
       setMaxStreak((prev) => Math.max(prev, newStreak));
 
-      setGameState({
-        ...gameState,
-        streak: newStreak,
-        questionsAnswered: gameState.questionsAnswered + 1,
-        correctAnswers: result.correct ? gameState.correctAnswers + 1 : gameState.correctAnswers,
-        lastAnswerCorrect: result.correct,
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          streak: newStreak,
+          questionsAnswered: prev.questionsAnswered + 1,
+          correctAnswers: result.correct ? prev.correctAnswers + 1 : prev.correctAnswers,
+          lastAnswerCorrect: result.correct,
+        };
       });
 
       if (result.correct) {
@@ -197,12 +200,15 @@ export default function Game() {
           setPathHistory(respawnHistory.length ? respawnHistory : [respawnPosition]);
           setHearts(3);
           setEncounter(null);
-          setGameState({
-            ...gameState,
-            maze: respawnMaze,
-            playerPosition: respawnPosition,
-            gamePhase: "exploring",
-            remainingSteps: 1,
+          setGameState((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              maze: respawnMaze,
+              playerPosition: respawnPosition,
+              gamePhase: "exploring",
+              remainingSteps: 1,
+            };
           });
           setStepsSinceEncounter(0);
           setNextEncounterAt(randomInt(3, 5));
