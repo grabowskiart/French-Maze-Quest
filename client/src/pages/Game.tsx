@@ -590,7 +590,7 @@ export default function Game() {
               <Button
                 onClick={handleStartRevealQuestion}
                 variant="secondary"
-                disabled={gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen}
+                disabled={gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen}
                 data-testid="button-reveal-challenge"
               >
                 Reveal 5 Tiles (Answer Question)
