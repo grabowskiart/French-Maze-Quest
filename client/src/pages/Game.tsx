@@ -126,6 +126,8 @@ export default function Game() {
   heartsRef.current = hearts;
   const pathHistoryRef = useRef(pathHistory);
   pathHistoryRef.current = pathHistory;
+  const gameStateRef = useRef(gameState);
+  gameStateRef.current = gameState;
   const encounterRef = useRef(encounter);
   encounterRef.current = encounter;
   const weaponRef = useRef(equippedWeapon);
@@ -156,10 +158,12 @@ export default function Game() {
       return res.json() as Promise<AnswerResult>;
     },
     onSuccess: (result) => {
-      setFeedbackResult(result);
-      if (!gameState || gameState.gamePhase !== "combat" || !encounterRef.current) return;
+      const activeState = gameStateRef.current;
+      if (!activeState || activeState.gamePhase !== "combat" || !encounterRef.current) return;
 
-      const newStreak = result.correct ? gameState.streak + 1 : 0;
+      setFeedbackResult(result);
+
+      const newStreak = result.correct ? activeState.streak + 1 : 0;
       setMaxStreak((prev) => Math.max(prev, newStreak));
 
       setGameState((prev) => {
@@ -194,9 +198,9 @@ export default function Game() {
         if (nextHearts <= 0) {
           const history = pathHistoryRef.current;
           const stepsBackIndex = Math.max(0, history.length - 1 - 10);
-          const respawnPosition = history[stepsBackIndex] ?? gameState.maze.entrance;
+          const respawnPosition = history[stepsBackIndex] ?? activeState.maze.entrance;
           const respawnHistory = history.slice(0, stepsBackIndex + 1);
-          const respawnMaze = updateVisibility(gameState.maze, respawnPosition, settingsRef.current.visibilityRadius);
+          const respawnMaze = updateVisibility(activeState.maze, respawnPosition, settingsRef.current.visibilityRadius);
 
           setPathHistory(respawnHistory.length ? respawnHistory : [respawnPosition]);
           setHearts(3);
