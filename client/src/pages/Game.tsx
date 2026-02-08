@@ -126,6 +126,8 @@ export default function Game() {
   heartsRef.current = hearts;
   const pathHistoryRef = useRef(pathHistory);
   pathHistoryRef.current = pathHistory;
+  const gameStateRef = useRef(gameState);
+  gameStateRef.current = gameState;
   const encounterRef = useRef(encounter);
   encounterRef.current = encounter;
   const weaponRef = useRef(equippedWeapon);
@@ -156,10 +158,12 @@ export default function Game() {
       return res.json() as Promise<AnswerResult>;
     },
     onSuccess: (result) => {
-      setFeedbackResult(result);
-      if (!gameState || gameState.gamePhase !== "combat" || !encounterRef.current) return;
+      const activeState = gameStateRef.current;
+      if (!activeState || activeState.gamePhase !== "combat" || !encounterRef.current) return;
 
-      const newStreak = result.correct ? gameState.streak + 1 : 0;
+      setFeedbackResult(result);
+
+      const newStreak = result.correct ? activeState.streak + 1 : 0;
       setMaxStreak((prev) => Math.max(prev, newStreak));
 
       setGameState((prev) => {
@@ -194,9 +198,9 @@ export default function Game() {
         if (nextHearts <= 0) {
           const history = pathHistoryRef.current;
           const stepsBackIndex = Math.max(0, history.length - 1 - 10);
-          const respawnPosition = history[stepsBackIndex] ?? gameState.maze.entrance;
+          const respawnPosition = history[stepsBackIndex] ?? activeState.maze.entrance;
           const respawnHistory = history.slice(0, stepsBackIndex + 1);
-          const respawnMaze = updateVisibility(gameState.maze, respawnPosition, settingsRef.current.visibilityRadius);
+          const respawnMaze = updateVisibility(activeState.maze, respawnPosition, settingsRef.current.visibilityRadius);
 
           setPathHistory(respawnHistory.length ? respawnHistory : [respawnPosition]);
           setHearts(3);
@@ -279,6 +283,14 @@ export default function Game() {
     setFeedbackResult(null);
   };
 
+  const handleRevealAreaBonus = () => {
+    if (!gameState || !feedbackResult?.correct) return;
+    const updatedMaze = revealTiles(gameState.maze, gameState.playerPosition, 5, false);
+    setGameState((prev) => prev ? { ...prev, maze: updatedMaze } : prev);
+    setCombatMessage("You used your reveal bonus and uncovered nearby tiles.");
+    setFeedbackResult(null);
+  };
+
   const handleUsePotion = () => {
     if (!encounter || potions <= 0 || !gameState || gameState.gamePhase !== "combat") return;
     setPotions((prev) => prev - 1);
@@ -290,7 +302,7 @@ export default function Game() {
   };
 
   const handleTileClick = (x: number, y: number) => {
-    if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice) return;
+    if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || feedbackResult) return;
 
     const dx = Math.abs(x - gameState.playerPosition.x);
     const dy = Math.abs(y - gameState.playerPosition.y);
@@ -384,7 +396,7 @@ export default function Game() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice) return;
+      if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || feedbackResult) return;
 
       const { x, y } = gameState.playerPosition;
       let newX = x;
@@ -423,7 +435,7 @@ export default function Game() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState, weaponChoice, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
+  }, [gameState, weaponChoice, feedbackResult, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
 
   if (!gameState || gameState.gamePhase === "start") {
     return <StartScreen onStart={startGame} />;
@@ -551,7 +563,11 @@ export default function Game() {
       </main>
 
       {feedbackResult && (
-        <FeedbackModal result={feedbackResult} onContinue={handleFeedbackContinue} />
+        <FeedbackModal
+          result={feedbackResult}
+          onContinue={handleFeedbackContinue}
+          onRevealArea={feedbackResult.correct ? handleRevealAreaBonus : undefined}
+        />
       )}
 
       {gameState.gamePhase === "won" && (
