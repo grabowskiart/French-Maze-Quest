@@ -44,7 +44,7 @@ function pickPathPositions(maze: Maze, count: number, excluded: Set<string>) {
   for (let y = 0; y < maze.height; y++) {
     for (let x = 0; x < maze.width; x++) {
       const tile = maze.tiles[y][x];
-      if ((tile.type === "path" || tile.type === "entrance") && !excluded.has(`${x},${y}`)) {
+      if (tile.type === "path" && !excluded.has(`${x},${y}`)) {
         paths.push({ x, y });
       }
     }

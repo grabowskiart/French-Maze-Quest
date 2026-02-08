@@ -47,14 +47,14 @@ export function MazeGrid({
   };
 
 
-  const getPickupIcon = (kind: "heart" | "potion" | "weapon") => {
+  const getPickupDisplay = (kind: "heart" | "potion" | "weapon") => {
     switch (kind) {
       case "heart":
-        return "❤️";
+        return { icon: "❤️", label: "Heart", badgeClass: "bg-red-500/90" };
       case "potion":
-        return "🧪";
+        return { icon: "🧪", label: "Potion", badgeClass: "bg-cyan-500/90" };
       case "weapon":
-        return "⚔️";
+        return { icon: "⚔️", label: "Weapon", badgeClass: "bg-amber-500/90" };
     }
   };
 
@@ -134,11 +134,20 @@ export function MazeGrid({
                         {isPlayer && (
                           <div className="absolute inset-0 flex items-center justify-center bg-primary rounded-sm z-10" />
                         )}
-                        {pickupKind && !isPlayer && (
-                          <div className="absolute inset-0 flex items-center justify-center z-[5] text-[8px] leading-none" title={pickupKind}>
-                            {getPickupIcon(pickupKind)}
-                          </div>
-                        )}
+                        {pickupKind && !isPlayer && (() => {
+                          const pickupDisplay = getPickupDisplay(pickupKind);
+                          return (
+                            <div
+                              className="absolute inset-0 flex items-center justify-center z-[5]"
+                              title={pickupDisplay.label}
+                              aria-label={pickupDisplay.label}
+                            >
+                              <div className={`h-3.5 w-3.5 rounded-full text-[9px] leading-none flex items-center justify-center shadow-sm ${pickupDisplay.badgeClass}`}>
+                                {pickupDisplay.icon}
+                              </div>
+                            </div>
+                          );
+                        })()}
                         {isEntrance && !isPlayer && (
                           <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-1.5 h-1.5 bg-maze-entrance rounded-full" />
