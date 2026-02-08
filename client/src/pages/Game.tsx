@@ -11,24 +11,10 @@ import { generateMaze, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
+import { BOSS_CREATURE, CREATURE_ROSTER, type ActiveEncounter } from "@/lib/creatures";
 
 const DEFAULT_MAZE_SIZE = 30;
 const DEFAULT_VISIBILITY_RADIUS = 1;
-
-const CREATURES = [
-  "Skeleton Scout",
-  "Goblin Raider",
-  "Cave Troll",
-  "Basilisk Spawn",
-  "Shadow Wraith",
-  "Crypt Ghoul",
-  "Stone Gargoyle",
-  "Bone Knight",
-  "Swamp Hag",
-  "Infernal Imp",
-  "Dungeon Minotaur",
-  "Nightmare Hound",
-] as const;
 
 const WEAPON_POOL = [
   { name: "Rusty Sword", damage: 1 },
@@ -68,13 +54,6 @@ function pickPathPositions(maze: Maze, count: number, excluded: Set<string>) {
     [paths[i], paths[j]] = [paths[j], paths[i]];
   }
   return paths.slice(0, count);
-}
-
-function getRandomEncounter() {
-  return {
-    name: CREATURES[Math.floor(Math.random() * CREATURES.length)],
-    maxHp: randomInt(1, 5),
-  };
 }
 
 function buildPickups(maze: Maze): Record<string, Pickup> {
@@ -134,12 +113,14 @@ export default function Game() {
   const [maxStreak, setMaxStreak] = useState(0);
   const [showDeathModal, setShowDeathModal] = useState(false);
   const [pickupModal, setPickupModal] = useState<{ title: string; description: string } | null>(null);
+  const [defeatedCreatureModal, setDefeatedCreatureModal] = useState<{ name: string; image: string; isBoss: boolean } | null>(null);
+  const [bossDefeated, setBossDefeated] = useState(false);
 
   const [hearts, setHearts] = useState(3);
   const [pathHistory, setPathHistory] = useState<Position[]>([]);
   const [stepsSinceEncounter, setStepsSinceEncounter] = useState(0);
   const [nextEncounterAt, setNextEncounterAt] = useState(randomInt(3, 5));
-  const [encounter, setEncounter] = useState<{ name: string; hp: number; maxHp: number } | null>(null);
+  const [encounter, setEncounter] = useState<ActiveEncounter | null>(null);
   const [combatMessage, setCombatMessage] = useState<string>("Move through the maze to find your first enemy.");
 
   const [pickups, setPickups] = useState<Record<string, Pickup>>({});
@@ -226,11 +207,19 @@ export default function Game() {
         const nextHp = encounterRef.current.hp - dmg;
         setCombatMessage(`Direct hit with ${weaponRef.current.name}! ${encounterRef.current.name} has ${Math.max(nextHp, 0)} HP left.`);
         if (nextHp <= 0) {
+          const defeated = encounterRef.current;
           setEncounter(null);
-          setGameState((prev) => prev ? { ...prev, gamePhase: "exploring" } : prev);
-          setNextEncounterAt(randomInt(3, 5));
-          setStepsSinceEncounter(0);
-          queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
+          setDefeatedCreatureModal({ name: defeated.name, image: defeated.defeatedImage, isBoss: defeated.isBoss });
+          if (defeated.isBoss) {
+            setBossDefeated(true);
+            setGameState((prev) => prev ? { ...prev, gamePhase: "won" } : prev);
+            setCombatMessage("The Dragon Warden is defeated! You claim the chest of gold.");
+          } else {
+            setGameState((prev) => prev ? { ...prev, gamePhase: "exploring" } : prev);
+            setNextEncounterAt(randomInt(3, 5));
+            setStepsSinceEncounter(0);
+            queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
+          }
         } else {
           setEncounter({ ...encounterRef.current, hp: nextHp });
           refetchQuestion();
@@ -301,12 +290,14 @@ export default function Game() {
     setEncounter(null);
     setStepsSinceEncounter(0);
     setNextEncounterAt(randomInt(3, 5));
-    setCombatMessage("Move through the maze. A creature appears every 3-5 steps.");
+    setCombatMessage("Move through the maze. Creatures are lurking nearby.");
     setSessionTime(0);
     setMaxStreak(0);
     setFeedbackResult(null);
     setShowDeathModal(false);
     setPickupModal(null);
+    setDefeatedCreatureModal(null);
+    setBossDefeated(false);
 
     setPickups(buildPickups(maze));
     setPotions(0);
@@ -335,13 +326,14 @@ export default function Game() {
   const isRevealQuestionActive = Boolean(weaponChoice);
   const isDeathModalOpen = showDeathModal;
   const isPickupModalOpen = Boolean(pickupModal);
+  const isDefeatedCreatureModalOpen = Boolean(defeatedCreatureModal);
 
   const pickupMarkers = Object.fromEntries(
     Object.entries(pickups).map(([key, value]) => [key, value.kind])
   ) as Record<string, "heart" | "potion" | "weapon">;
 
   const handleStartRevealQuestion = () => {
-    if (!gameState || gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen) return;
+    if (!gameState || gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen || isDefeatedCreatureModalOpen) return;
     setIsRevealQuestionMode(true);
     setCombatMessage("Answer a French question correctly to reveal a 5-tile radius.");
     queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
@@ -349,7 +341,26 @@ export default function Game() {
   const handleUsePotion = () => {
     if (!encounter || potions <= 0 || !gameState || gameState.gamePhase !== "combat") return;
     setPotions((prev) => prev - 1);
+
+    if (encounter.isBoss) {
+      const potionDamage = Math.max(1, Math.ceil(encounter.maxHp * 0.2));
+      const nextHp = Math.max(0, encounter.hp - potionDamage);
+      if (nextHp <= 0) {
+        setEncounter(null);
+        setBossDefeated(true);
+        setDefeatedCreatureModal({ name: encounter.name, image: encounter.defeatedImage, isBoss: true });
+        setGameState({ ...gameState, gamePhase: "won" });
+        setCombatMessage("The dragon collapses! The treasure is yours.");
+      } else {
+        setEncounter({ ...encounter, hp: nextHp });
+        setCombatMessage(`Potion burns the dragon for ${potionDamage} damage. ${nextHp} HP remains.`);
+        refetchQuestion();
+      }
+      return;
+    }
+
     setEncounter(null);
+    setDefeatedCreatureModal({ name: encounter.name, image: encounter.defeatedImage, isBoss: false });
     setGameState({ ...gameState, gamePhase: "exploring" });
     setStepsSinceEncounter(0);
     setNextEncounterAt(randomInt(3, 5));
@@ -357,7 +368,7 @@ export default function Game() {
   };
 
   const handleTileClick = (x: number, y: number) => {
-    if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen) return;
+    if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen || isDefeatedCreatureModalOpen) return;
 
     const dx = Math.abs(x - gameState.playerPosition.x);
     const dy = Math.abs(y - gameState.playerPosition.y);
@@ -370,13 +381,26 @@ export default function Game() {
     const updatedMaze = updateVisibility(gameState.maze, newPosition, settingsRef.current.visibilityRadius);
 
     if (tile.type === "exit") {
-      setGameState({
-        ...gameState,
-        maze: updatedMaze,
-        playerPosition: newPosition,
-        gamePhase: "won",
-        remainingSteps: 0,
-      });
+      if (bossDefeated) {
+        setGameState({
+          ...gameState,
+          maze: updatedMaze,
+          playerPosition: newPosition,
+          gamePhase: "won",
+          remainingSteps: 0,
+        });
+      } else {
+        setEncounter({ ...BOSS_CREATURE, hp: BOSS_CREATURE.maxHp, isBoss: true });
+        setCombatMessage("The Dragon Warden blocks the treasure! Defeat it to claim the chest of gold.");
+        setGameState({
+          ...gameState,
+          maze: updatedMaze,
+          playerPosition: newPosition,
+          gamePhase: "combat",
+          remainingSteps: 0,
+        });
+        queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
+      }
       return;
     }
 
@@ -416,8 +440,8 @@ export default function Game() {
     }
 
     if (movedSteps >= nextEncounterAt) {
-      const next = getRandomEncounter();
-      setEncounter({ name: next.name, hp: next.maxHp, maxHp: next.maxHp });
+      const next = CREATURE_ROSTER[Math.floor(Math.random() * CREATURE_ROSTER.length)];
+      setEncounter({ ...next, hp: next.maxHp, isBoss: false });
       setCombatMessage(`A ${next.name} appears! Answer French questions to defeat it.`);
       setGameState({
         ...gameState,
@@ -440,7 +464,7 @@ export default function Game() {
   };
 
   const handleMove = (direction: "up" | "down" | "left" | "right") => {
-    if (!gameState || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen) return;
+    if (!gameState || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen || isDefeatedCreatureModalOpen) return;
     const { x, y } = gameState.playerPosition;
     let newX = x;
     let newY = y;
@@ -459,7 +483,7 @@ export default function Game() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen) return;
+      if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen || isDefeatedCreatureModalOpen) return;
 
       const { x, y } = gameState.playerPosition;
       let newX = x;
@@ -498,7 +522,7 @@ export default function Game() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState, isRevealQuestionActive, isFeedbackModalOpen, isRevealQuestionMode, isDeathModalOpen, isPickupModalOpen, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
+  }, [gameState, isRevealQuestionActive, isFeedbackModalOpen, isRevealQuestionMode, isDeathModalOpen, isPickupModalOpen, isDefeatedCreatureModalOpen, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
 
   if (!gameState || gameState.gamePhase === "start") {
     return <StartScreen onStart={startGame} />;
@@ -590,7 +614,7 @@ export default function Game() {
               <Button
                 onClick={handleStartRevealQuestion}
                 variant="secondary"
-                disabled={gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen}
+                disabled={gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen || isDefeatedCreatureModalOpen}
                 data-testid="button-reveal-challenge"
               >
                 Reveal 5 Tiles (Answer Question)
@@ -604,13 +628,20 @@ export default function Game() {
                 <div className="rounded-lg border bg-card p-4">
                   <h2 className="font-display text-2xl font-bold">⚔️ {encounter.name}</h2>
                   <p className="text-muted-foreground">Defeat it by answering French questions correctly.</p>
+                  <div className="mt-3 overflow-hidden rounded-lg border border-border bg-black/50">
+                    <img
+                      src={encounter.image}
+                      alt={encounter.name}
+                      className={`w-full object-cover ${encounter.isBoss ? "h-[420px]" : "h-[400px]"}` }
+                    />
+                  </div>
                   <div className="mt-3 space-y-1">
                     <Progress value={(encounter.hp / encounter.maxHp) * 100} className="h-3" />
                     <p className="text-xs text-muted-foreground">{encounter.hp}/{encounter.maxHp} HP</p>
                   </div>
                   {potions > 0 && (
                     <Button className="mt-3" variant="secondary" onClick={handleUsePotion} data-testid="button-use-potion">
-                      Use Potion (Instant Defeat)
+                      Use Potion
                     </Button>
                   )}
                 </div>
@@ -649,7 +680,7 @@ export default function Game() {
             {gameState.gamePhase === "exploring" && !isRevealQuestionMode && (
               <div className="text-center py-12">
                 <h2 className="font-display text-2xl font-bold text-foreground mb-2">Explore the Dungeon</h2>
-                <p className="text-muted-foreground">Move with arrow buttons or keyboard arrows.</p>
+                <p className="text-muted-foreground">Move with arrow buttons or keyboard arrows. Reach the exit to face the Dragon Warden boss.</p>
               </div>
             )}
           </div>
@@ -686,6 +717,25 @@ export default function Game() {
         </div>
       )}
 
+      {isDefeatedCreatureModalOpen && defeatedCreatureModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
+          <div className="relative w-full max-w-3xl rounded-xl border-2 border-red-500/60 bg-card p-6 shadow-2xl text-center space-y-4">
+            <h2 className="font-display text-3xl font-bold text-red-500">
+              {defeatedCreatureModal.isBoss ? "Dragon Defeated" : `${defeatedCreatureModal.name} Defeated`}
+            </h2>
+            <img
+              src={defeatedCreatureModal.image}
+              alt={`${defeatedCreatureModal.name} defeated`}
+              className="mx-auto h-[360px] w-full max-w-[400px] rounded-lg border object-cover"
+            />
+            <Button onClick={() => setDefeatedCreatureModal(null)} data-testid="button-defeated-creature-continue">
+              Continue
+            </Button>
+          </div>
+        </div>
+      )}
+
       {feedbackResult && (
         <FeedbackModal
           result={feedbackResult}
@@ -699,6 +749,7 @@ export default function Game() {
           correctAnswers={gameState.correctAnswers}
           sessionTime={sessionTime}
           streak={maxStreak}
+          showDragonVictoryScene={bossDefeated}
           onPlayAgain={startGame}
         />
       )}
