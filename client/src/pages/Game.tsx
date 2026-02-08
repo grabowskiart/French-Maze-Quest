@@ -7,7 +7,7 @@ import { QuestionPanel } from "@/components/game/QuestionPanel";
 import { FeedbackModal } from "@/components/game/FeedbackModal";
 import { WinScreen } from "@/components/game/WinScreen";
 import { StartScreen } from "@/components/game/StartScreen";
-import { generateMaze, updateVisibility } from "@/lib/mazeGenerator";
+import { generateMaze, revealTiles, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
@@ -108,6 +108,8 @@ export default function Game() {
   const [sessionTime, setSessionTime] = useState(0);
   const [feedbackResult, setFeedbackResult] = useState<AnswerResult | null>(null);
   const [maxStreak, setMaxStreak] = useState(0);
+  const [isRevealArmed, setIsRevealArmed] = useState(false);
+  const isFeedbackModalOpen = feedbackResult !== null;
 
   const [hearts, setHearts] = useState(3);
   const [pathHistory, setPathHistory] = useState<Position[]>([]);
@@ -132,6 +134,8 @@ export default function Game() {
   encounterRef.current = encounter;
   const weaponRef = useRef(equippedWeapon);
   weaponRef.current = equippedWeapon;
+  const revealArmedRef = useRef(isRevealArmed);
+  revealArmedRef.current = isRevealArmed;
 
   const { data: settings } = useQuery<GameSettings>({
     queryKey: ["/api/settings"],
@@ -168,8 +172,13 @@ export default function Game() {
 
       setGameState((prev) => {
         if (!prev) return prev;
+        const nextMaze = result.correct && revealArmedRef.current
+          ? revealTiles(prev.maze, prev.playerPosition, 5, false)
+          : prev.maze;
+
         return {
           ...prev,
+          maze: nextMaze,
           streak: newStreak,
           questionsAnswered: prev.questionsAnswered + 1,
           correctAnswers: result.correct ? prev.correctAnswers + 1 : prev.correctAnswers,
@@ -178,9 +187,15 @@ export default function Game() {
       });
 
       if (result.correct) {
+        const usedRevealBonus = revealArmedRef.current;
+        if (usedRevealBonus) {
+          setIsRevealArmed(false);
+        }
+
         const dmg = Math.max(1, weaponRef.current.damage);
         const nextHp = encounterRef.current.hp - dmg;
-        setCombatMessage(`Direct hit with ${weaponRef.current.name}! ${encounterRef.current.name} has ${Math.max(nextHp, 0)} HP left.`);
+        const revealMessage = usedRevealBonus ? " Reveal bonus activated: nearby tiles uncovered." : "";
+        setCombatMessage(`Direct hit with ${weaponRef.current.name}! ${encounterRef.current.name} has ${Math.max(nextHp, 0)} HP left.${revealMessage}`);
         if (nextHp <= 0) {
           setEncounter(null);
           setGameState((prev) => prev ? { ...prev, gamePhase: "exploring" } : prev);
@@ -260,6 +275,7 @@ export default function Game() {
     setSessionTime(0);
     setMaxStreak(0);
     setFeedbackResult(null);
+    setIsRevealArmed(false);
 
     setPickups(buildPickups(maze));
     setPotions(0);
@@ -283,12 +299,10 @@ export default function Game() {
     setFeedbackResult(null);
   };
 
-  const handleRevealAreaBonus = () => {
-    if (!gameState || !feedbackResult?.correct) return;
-    const updatedMaze = revealTiles(gameState.maze, gameState.playerPosition, 5, false);
-    setGameState((prev) => prev ? { ...prev, maze: updatedMaze } : prev);
-    setCombatMessage("You used your reveal bonus and uncovered nearby tiles.");
-    setFeedbackResult(null);
+  const handleArmRevealBonus = () => {
+    if (!gameState || isRevealArmed || gameState.gamePhase === "won") return;
+    setIsRevealArmed(true);
+    setCombatMessage("Reveal bonus armed. Answer a French question correctly to uncover 5 tiles.");
   };
 
   const handleUsePotion = () => {
@@ -377,7 +391,7 @@ export default function Game() {
   };
 
   const handleMove = (direction: "up" | "down" | "left" | "right") => {
-    if (!gameState) return;
+    if (!gameState || isFeedbackModalOpen) return;
     const { x, y } = gameState.playerPosition;
     let newX = x;
     let newY = y;
@@ -396,7 +410,7 @@ export default function Game() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || feedbackResult) return;
+      if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || isFeedbackModalOpen) return;
 
       const { x, y } = gameState.playerPosition;
       let newX = x;
@@ -435,7 +449,7 @@ export default function Game() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState, weaponChoice, feedbackResult, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
+  }, [gameState, weaponChoice, isFeedbackModalOpen, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
 
   if (!gameState || gameState.gamePhase === "start") {
     return <StartScreen onStart={startGame} />;
@@ -509,15 +523,26 @@ export default function Game() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <div className="order-2 lg:order-1">
-            <MazeGrid
-              maze={gameState.maze}
-              playerPosition={gameState.playerPosition}
-              isMoving={gameState.gamePhase === "exploring"}
-              remainingSteps={0}
-              hasStepLimit={false}
-              onTileClick={handleTileClick}
-              onMove={handleMove}
-            />
+            <div className="space-y-4">
+              <MazeGrid
+                maze={gameState.maze}
+                playerPosition={gameState.playerPosition}
+                isMoving={gameState.gamePhase === "exploring" && !isFeedbackModalOpen}
+                remainingSteps={0}
+                hasStepLimit={false}
+                onTileClick={handleTileClick}
+                onMove={handleMove}
+              />
+              <Button
+                className="w-full"
+                variant={isRevealArmed ? "secondary" : "default"}
+                onClick={handleArmRevealBonus}
+                disabled={isRevealArmed || gameState.gamePhase === "won"}
+                data-testid="button-arm-reveal-area"
+              >
+                {isRevealArmed ? "Reveal 5 Tiles Ready" : "Reveal 5 Tiles (On next correct answer)"}
+              </Button>
+            </div>
           </div>
 
           <div className="order-1 lg:order-2">
@@ -566,7 +591,6 @@ export default function Game() {
         <FeedbackModal
           result={feedbackResult}
           onContinue={handleFeedbackContinue}
-          onRevealArea={feedbackResult.correct ? handleRevealAreaBonus : undefined}
         />
       )}
 
