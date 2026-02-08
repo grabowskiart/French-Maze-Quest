@@ -133,6 +133,7 @@ export default function Game() {
   const [feedbackResult, setFeedbackResult] = useState<AnswerResult | null>(null);
   const [maxStreak, setMaxStreak] = useState(0);
   const [showDeathModal, setShowDeathModal] = useState(false);
+  const [pickupModal, setPickupModal] = useState<{ title: string; description: string } | null>(null);
 
   const [hearts, setHearts] = useState(3);
   const [pathHistory, setPathHistory] = useState<Position[]>([]);
@@ -305,6 +306,7 @@ export default function Game() {
     setMaxStreak(0);
     setFeedbackResult(null);
     setShowDeathModal(false);
+    setPickupModal(null);
 
     setPickups(buildPickups(maze));
     setPotions(0);
@@ -332,9 +334,14 @@ export default function Game() {
   const isFeedbackModalOpen = Boolean(feedbackResult);
   const isRevealQuestionActive = Boolean(weaponChoice);
   const isDeathModalOpen = showDeathModal;
+  const isPickupModalOpen = Boolean(pickupModal);
+
+  const pickupMarkers = Object.fromEntries(
+    Object.entries(pickups).map(([key, value]) => [key, value.kind])
+  ) as Record<string, "heart" | "potion" | "weapon">;
 
   const handleStartRevealQuestion = () => {
-    if (!gameState || gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen) return;
+    if (!gameState || gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen) return;
     setIsRevealQuestionMode(true);
     setCombatMessage("Answer a French question correctly to reveal a 5-tile radius.");
     queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
@@ -350,7 +357,7 @@ export default function Game() {
   };
 
   const handleTileClick = (x: number, y: number) => {
-    if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode || isDeathModalOpen) return;
+    if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen) return;
 
     const dx = Math.abs(x - gameState.playerPosition.x);
     const dy = Math.abs(y - gameState.playerPosition.y);
@@ -382,6 +389,10 @@ export default function Game() {
     if (pickup?.kind === "heart") {
       setHearts((prev) => prev + 1);
       setCombatMessage("You found a heart! +1 life.");
+      setPickupModal({
+        title: "Extra Life Collected",
+        description: "You picked up a heart and gained +1 life.",
+      });
       setPickups((prev) => {
         const next = { ...prev };
         delete next[pickupKey];
@@ -390,6 +401,10 @@ export default function Game() {
     } else if (pickup?.kind === "potion") {
       setPotions((prev) => prev + 1);
       setCombatMessage("You found a magic potion! It can instantly defeat one creature.");
+      setPickupModal({
+        title: "Potion Collected",
+        description: "You picked up a potion. Use it in combat for an instant creature defeat.",
+      });
       setPickups((prev) => {
         const next = { ...prev };
         delete next[pickupKey];
@@ -425,7 +440,7 @@ export default function Game() {
   };
 
   const handleMove = (direction: "up" | "down" | "left" | "right") => {
-    if (!gameState || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen) return;
+    if (!gameState || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen) return;
     const { x, y } = gameState.playerPosition;
     let newX = x;
     let newY = y;
@@ -444,7 +459,7 @@ export default function Game() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode || isDeathModalOpen) return;
+      if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen) return;
 
       const { x, y } = gameState.playerPosition;
       let newX = x;
@@ -483,7 +498,7 @@ export default function Game() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState, isRevealQuestionActive, isFeedbackModalOpen, isRevealQuestionMode, isDeathModalOpen, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
+  }, [gameState, isRevealQuestionActive, isFeedbackModalOpen, isRevealQuestionMode, isDeathModalOpen, isPickupModalOpen, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
 
   if (!gameState || gameState.gamePhase === "start") {
     return <StartScreen onStart={startGame} />;
@@ -531,6 +546,10 @@ export default function Game() {
                   return next;
                 });
                 setCombatMessage(`Picked up ${weaponChoice.weapon.name}.`);
+                setPickupModal({
+                  title: "Weapon Collected",
+                  description: `You picked up ${weaponChoice.weapon.name} (Damage ${weaponChoice.weapon.damage}).`,
+                });
                 setWeaponChoice(null);
               }}
               data-testid="button-pick-weapon"
@@ -563,6 +582,7 @@ export default function Game() {
               isMoving={gameState.gamePhase === "exploring"}
               remainingSteps={0}
               hasStepLimit={false}
+              pickupMarkers={pickupMarkers}
               onTileClick={handleTileClick}
               onMove={handleMove}
             />
@@ -647,6 +667,20 @@ export default function Game() {
             </p>
             <Button onClick={() => setShowDeathModal(false)} data-testid="button-death-continue">
               Continue Adventure
+            </Button>
+          </div>
+        </div>
+      )}
+
+
+      {isPickupModalOpen && pickupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md rounded-xl border-2 border-primary/40 bg-card p-6 shadow-2xl text-center space-y-3">
+            <h2 className="font-display text-2xl font-bold text-primary">{pickupModal.title}</h2>
+            <p className="text-muted-foreground">{pickupModal.description}</p>
+            <Button onClick={() => setPickupModal(null)} data-testid="button-pickup-continue">
+              Continue
             </Button>
           </div>
         </div>

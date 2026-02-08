@@ -8,6 +8,7 @@ interface MazeGridProps {
   isMoving: boolean;
   remainingSteps: number;
   hasStepLimit?: boolean;
+  pickupMarkers?: Record<string, "heart" | "potion" | "weapon">;
   onTileClick: (x: number, y: number) => void;
   onMove?: (direction: "up" | "down" | "left" | "right") => void;
 }
@@ -18,6 +19,7 @@ export function MazeGrid({
   isMoving,
   remainingSteps,
   hasStepLimit = true,
+  pickupMarkers = {},
   onTileClick,
   onMove,
 }: MazeGridProps) {
@@ -42,6 +44,18 @@ export function MazeGrid({
     const visibilityClass = tile.fog === "seen" ? "opacity-80" : "";
 
     return `${baseClasses} ${bgClass} ${visibilityClass}`;
+  };
+
+
+  const getPickupIcon = (kind: "heart" | "potion" | "weapon") => {
+    switch (kind) {
+      case "heart":
+        return "❤️";
+      case "potion":
+        return "🧪";
+      case "weapon":
+        return "⚔️";
+    }
   };
 
   const canMoveInDirection = (direction: "up" | "down" | "left" | "right") => {
@@ -107,6 +121,7 @@ export function MazeGrid({
                 const isEntrance =
                   tile.x === maze.entrance.x && tile.y === maze.entrance.y;
                 const isExit = tile.x === maze.exit.x && tile.y === maze.exit.y;
+                const pickupKind = pickupMarkers[`${tile.x},${tile.y}`];
 
                 return (
                   <div
@@ -118,6 +133,11 @@ export function MazeGrid({
                       <>
                         {isPlayer && (
                           <div className="absolute inset-0 flex items-center justify-center bg-primary rounded-sm z-10" />
+                        )}
+                        {pickupKind && !isPlayer && (
+                          <div className="absolute inset-0 flex items-center justify-center z-[5] text-[8px] leading-none" title={pickupKind}>
+                            {getPickupIcon(pickupKind)}
+                          </div>
                         )}
                         {isEntrance && !isPlayer && (
                           <div className="absolute inset-0 flex items-center justify-center">
