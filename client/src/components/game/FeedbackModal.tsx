@@ -74,12 +74,13 @@ export function FeedbackModal({ result, onContinue }: FeedbackModalProps) {
               </div>
             )}
 
+
             <Button
               onClick={onContinue}
-              className="w-full h-12 text-lg font-bold font-display mt-4"
+              className="w-full h-12 text-lg font-bold font-display mt-2"
               data-testid="button-continue"
             >
-              {result.correct ? "Choose Your Reward" : "Continue"}
+              Continue
             </Button>
           </div>
         </CardContent>
