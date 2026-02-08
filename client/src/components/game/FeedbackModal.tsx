@@ -8,9 +8,10 @@ import type { AnswerResult } from "@shared/schema";
 interface FeedbackModalProps {
   result: AnswerResult;
   onContinue: () => void;
+  onRevealArea?: () => void;
 }
 
-export function FeedbackModal({ result, onContinue }: FeedbackModalProps) {
+export function FeedbackModal({ result, onContinue, onRevealArea }: FeedbackModalProps) {
   useEffect(() => {
     if (result.correct) {
       confetti({
