@@ -9,6 +9,7 @@ import { WinScreen } from "@/components/game/WinScreen";
 import { StartScreen } from "@/components/game/StartScreen";
 import { generateMaze, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
 
 const DEFAULT_MAZE_SIZE = 30;
@@ -446,7 +447,11 @@ export default function Game() {
             <p className="text-muted-foreground">Next encounter in {Math.max(0, nextEncounterAt - stepsSinceEncounter)} step(s).</p>
           )}
           {encounter && (
-            <p className="font-medium">{encounter.name}: {encounter.hp}/{encounter.maxHp} HP</p>
+            <div className="space-y-1">
+              <p className="font-medium">{encounter.name}</p>
+              <Progress value={(encounter.hp / encounter.maxHp) * 100} className="h-3" />
+              <p className="text-xs text-muted-foreground">{encounter.hp}/{encounter.maxHp} HP</p>
+            </div>
           )}
           {weaponInventory.length > 0 && (
             <p className="text-muted-foreground">Inventory: {weaponInventory.map((w) => `${w.name}(${w.damage})`).join(", ")}</p>
@@ -509,6 +514,10 @@ export default function Game() {
                 <div className="rounded-lg border bg-card p-4">
                   <h2 className="font-display text-2xl font-bold">⚔️ {encounter.name}</h2>
                   <p className="text-muted-foreground">Defeat it by answering French questions correctly.</p>
+                  <div className="mt-3 space-y-1">
+                    <Progress value={(encounter.hp / encounter.maxHp) * 100} className="h-3" />
+                    <p className="text-xs text-muted-foreground">{encounter.hp}/{encounter.maxHp} HP</p>
+                  </div>
                   {potions > 0 && (
                     <Button className="mt-3" variant="secondary" onClick={handleUsePotion} data-testid="button-use-potion">
                       Use Potion (Instant Defeat)
