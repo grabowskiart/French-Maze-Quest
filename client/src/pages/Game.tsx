@@ -7,7 +7,7 @@ import { QuestionPanel } from "@/components/game/QuestionPanel";
 import { FeedbackModal } from "@/components/game/FeedbackModal";
 import { WinScreen } from "@/components/game/WinScreen";
 import { StartScreen } from "@/components/game/StartScreen";
-import { generateMaze, updateVisibility } from "@/lib/mazeGenerator";
+import { generateMaze, revealTiles, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
@@ -108,6 +108,7 @@ export default function Game() {
   const [sessionTime, setSessionTime] = useState(0);
   const [feedbackResult, setFeedbackResult] = useState<AnswerResult | null>(null);
   const [maxStreak, setMaxStreak] = useState(0);
+  const isFeedbackModalOpen = feedbackResult !== null;
 
   const [hearts, setHearts] = useState(3);
   const [pathHistory, setPathHistory] = useState<Position[]>([]);
@@ -377,7 +378,7 @@ export default function Game() {
   };
 
   const handleMove = (direction: "up" | "down" | "left" | "right") => {
-    if (!gameState) return;
+    if (!gameState || isFeedbackModalOpen) return;
     const { x, y } = gameState.playerPosition;
     let newX = x;
     let newY = y;
@@ -396,7 +397,7 @@ export default function Game() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || feedbackResult) return;
+      if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || isFeedbackModalOpen) return;
 
       const { x, y } = gameState.playerPosition;
       let newX = x;
@@ -435,7 +436,7 @@ export default function Game() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState, weaponChoice, feedbackResult, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
+  }, [gameState, weaponChoice, isFeedbackModalOpen, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
 
   if (!gameState || gameState.gamePhase === "start") {
     return <StartScreen onStart={startGame} />;
@@ -512,7 +513,7 @@ export default function Game() {
             <MazeGrid
               maze={gameState.maze}
               playerPosition={gameState.playerPosition}
-              isMoving={gameState.gamePhase === "exploring"}
+              isMoving={gameState.gamePhase === "exploring" && !isFeedbackModalOpen}
               remainingSteps={0}
               hasStepLimit={false}
               onTileClick={handleTileClick}
