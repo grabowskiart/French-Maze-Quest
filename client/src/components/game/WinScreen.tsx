@@ -10,6 +10,7 @@ interface WinScreenProps {
   sessionTime: number;
   streak: number;
   onPlayAgain: () => void;
+  showDragonVictoryScene?: boolean;
 }
 
 export function WinScreen({
@@ -18,6 +19,7 @@ export function WinScreen({
   sessionTime,
   streak,
   onPlayAgain,
+  showDragonVictoryScene = false,
 }: WinScreenProps) {
   const accuracy = questionsAnswered > 0 ? Math.round((correctAnswers / questionsAnswered) * 100) : 0;
 
@@ -58,7 +60,7 @@ export function WinScreen({
 
   return (
     <div className="fixed inset-0 bg-background/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md shadow-2xl border-2 border-warning/50">
+      <Card className={`w-full shadow-2xl border-2 border-warning/50 ${showDragonVictoryScene ? "max-w-4xl" : "max-w-md"}`}>
         <CardContent className="pt-10 pb-8 px-6">
           <div className="flex flex-col items-center text-center space-y-6">
             <div className="relative">
@@ -79,6 +81,16 @@ export function WinScreen({
               </p>
             </div>
 
+
+            {showDragonVictoryScene && (
+              <div className="w-full overflow-hidden rounded-xl border border-border bg-black/40">
+                <img
+                  src="/images/creatures/victory-scene.svg"
+                  alt="Chest of gold, fallen dragon, and dungeon exit"
+                  className="h-[260px] w-full object-cover"
+                />
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4 w-full pt-4">
               <div className="bg-card rounded-xl p-4 border border-border">
                 <div className="flex items-center justify-center gap-2 text-muted-foreground mb-1">

@@ -1,4 +1,4 @@
-import { Home, Trophy, User, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Maze, Position } from "@shared/schema";
 
@@ -7,6 +7,8 @@ interface MazeGridProps {
   playerPosition: Position;
   isMoving: boolean;
   remainingSteps: number;
+  hasStepLimit?: boolean;
+  pickupMarkers?: Record<string, "heart" | "potion" | "weapon">;
   onTileClick: (x: number, y: number) => void;
   onMove?: (direction: "up" | "down" | "left" | "right") => void;
 }
@@ -16,6 +18,8 @@ export function MazeGrid({
   playerPosition,
   isMoving,
   remainingSteps,
+  hasStepLimit = true,
+  pickupMarkers = {},
   onTileClick,
   onMove,
 }: MazeGridProps) {
@@ -42,8 +46,21 @@ export function MazeGrid({
     return `${baseClasses} ${bgClass} ${visibilityClass}`;
   };
 
+
+  const getPickupIcon = (kind: "heart" | "potion" | "weapon") => {
+    switch (kind) {
+      case "heart":
+        return "❤️";
+      case "potion":
+        return "🧪";
+      case "weapon":
+        return "⚔️";
+    }
+  };
+
   const canMoveInDirection = (direction: "up" | "down" | "left" | "right") => {
-    if (!isMoving || remainingSteps <= 0) return false;
+    if (!isMoving) return false;
+    if (hasStepLimit && remainingSteps <= 0) return false;
     
     let newX = playerPosition.x;
     let newY = playerPosition.y;
@@ -104,6 +121,7 @@ export function MazeGrid({
                 const isEntrance =
                   tile.x === maze.entrance.x && tile.y === maze.entrance.y;
                 const isExit = tile.x === maze.exit.x && tile.y === maze.exit.y;
+                const pickupKind = pickupMarkers[`${tile.x},${tile.y}`];
 
                 return (
                   <div
@@ -115,6 +133,11 @@ export function MazeGrid({
                       <>
                         {isPlayer && (
                           <div className="absolute inset-0 flex items-center justify-center bg-primary rounded-sm z-10" />
+                        )}
+                        {pickupKind && !isPlayer && (
+                          <div className="absolute inset-0 flex items-center justify-center z-[5] text-[8px] leading-none" title={pickupKind}>
+                            {getPickupIcon(pickupKind)}
+                          </div>
                         )}
                         {isEntrance && !isPlayer && (
                           <div className="absolute inset-0 flex items-center justify-center">
@@ -160,7 +183,7 @@ export function MazeGrid({
         <ChevronDown className="h-6 w-6" />
       </Button>
 
-      {isMoving && remainingSteps > 0 && (
+      {isMoving && hasStepLimit && remainingSteps > 0 && (
         <div className="mt-2">
           <div className="bg-primary text-primary-foreground px-4 py-2 rounded-full font-display font-bold text-sm shadow-lg">
             {remainingSteps} step{remainingSteps !== 1 ? "s" : ""} left
