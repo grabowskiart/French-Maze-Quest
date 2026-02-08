@@ -132,6 +132,7 @@ export default function Game() {
   const [sessionTime, setSessionTime] = useState(0);
   const [feedbackResult, setFeedbackResult] = useState<AnswerResult | null>(null);
   const [maxStreak, setMaxStreak] = useState(0);
+  const [showDeathModal, setShowDeathModal] = useState(false);
 
   const [hearts, setHearts] = useState(3);
   const [pathHistory, setPathHistory] = useState<Position[]>([]);
@@ -260,6 +261,7 @@ export default function Game() {
           setStepsSinceEncounter(0);
           setNextEncounterAt(randomInt(3, 5));
           setCombatMessage("You were defeated! You respawned 10 steps back with 3 hearts.");
+          setShowDeathModal(true);
         } else {
           setCombatMessage(`${encounterRef.current.name} hit you! Hearts left: ${nextHearts}.`);
           refetchQuestion();
@@ -302,6 +304,7 @@ export default function Game() {
     setSessionTime(0);
     setMaxStreak(0);
     setFeedbackResult(null);
+    setShowDeathModal(false);
 
     setPickups(buildPickups(maze));
     setPotions(0);
@@ -328,9 +331,10 @@ export default function Game() {
 
   const isFeedbackModalOpen = Boolean(feedbackResult);
   const isRevealQuestionActive = Boolean(weaponChoice);
+  const isDeathModalOpen = showDeathModal;
 
   const handleStartRevealQuestion = () => {
-    if (!gameState || gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode) return;
+    if (!gameState || gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen) return;
     setIsRevealQuestionMode(true);
     setCombatMessage("Answer a French question correctly to reveal a 5-tile radius.");
     queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
@@ -346,7 +350,7 @@ export default function Game() {
   };
 
   const handleTileClick = (x: number, y: number) => {
-    if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode) return;
+    if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode || isDeathModalOpen) return;
 
     const dx = Math.abs(x - gameState.playerPosition.x);
     const dy = Math.abs(y - gameState.playerPosition.y);
@@ -421,7 +425,7 @@ export default function Game() {
   };
 
   const handleMove = (direction: "up" | "down" | "left" | "right") => {
-    if (!gameState || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode) return;
+    if (!gameState || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen) return;
     const { x, y } = gameState.playerPosition;
     let newX = x;
     let newY = y;
@@ -440,7 +444,7 @@ export default function Game() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode) return;
+      if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode || isDeathModalOpen) return;
 
       const { x, y } = gameState.playerPosition;
       let newX = x;
@@ -479,7 +483,7 @@ export default function Game() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState, isRevealQuestionActive, isFeedbackModalOpen, isRevealQuestionMode, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
+  }, [gameState, isRevealQuestionActive, isFeedbackModalOpen, isRevealQuestionMode, isDeathModalOpen, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
 
   if (!gameState || gameState.gamePhase === "start") {
     return <StartScreen onStart={startGame} />;
@@ -566,7 +570,7 @@ export default function Game() {
               <Button
                 onClick={handleStartRevealQuestion}
                 variant="secondary"
-                disabled={gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode}
+                disabled={gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen}
                 data-testid="button-reveal-challenge"
               >
                 Reveal 5 Tiles (Answer Question)
@@ -631,6 +635,22 @@ export default function Game() {
           </div>
         </div>
       </main>
+
+
+      {isDeathModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-red-600/35 animate-pulse" />
+          <div className="relative w-full max-w-md rounded-xl border-2 border-red-500 bg-card p-6 shadow-2xl text-center space-y-3">
+            <h2 className="font-display text-3xl font-bold text-red-600">You Died</h2>
+            <p className="text-muted-foreground">
+              The creature defeated you. You have been re-spawned 10 steps earlier in your quest with 3 hearts.
+            </p>
+            <Button onClick={() => setShowDeathModal(false)} data-testid="button-death-continue">
+              Continue Adventure
+            </Button>
+          </div>
+        </div>
+      )}
 
       {feedbackResult && (
         <FeedbackModal
