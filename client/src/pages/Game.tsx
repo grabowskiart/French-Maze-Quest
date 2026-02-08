@@ -7,7 +7,7 @@ import { QuestionPanel } from "@/components/game/QuestionPanel";
 import { FeedbackModal } from "@/components/game/FeedbackModal";
 import { WinScreen } from "@/components/game/WinScreen";
 import { StartScreen } from "@/components/game/StartScreen";
-import { generateMaze, updateVisibility } from "@/lib/mazeGenerator";
+import { generateMaze, revealTiles, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
@@ -108,6 +108,8 @@ export default function Game() {
   const [sessionTime, setSessionTime] = useState(0);
   const [feedbackResult, setFeedbackResult] = useState<AnswerResult | null>(null);
   const [maxStreak, setMaxStreak] = useState(0);
+  const [isRevealQuestionActive, setIsRevealQuestionActive] = useState(false);
+  const isFeedbackModalOpen = feedbackResult !== null;
 
   const [hearts, setHearts] = useState(3);
   const [pathHistory, setPathHistory] = useState<Position[]>([]);
@@ -132,6 +134,8 @@ export default function Game() {
   encounterRef.current = encounter;
   const weaponRef = useRef(equippedWeapon);
   weaponRef.current = equippedWeapon;
+  const revealQuestionActiveRef = useRef(isRevealQuestionActive);
+  revealQuestionActiveRef.current = isRevealQuestionActive;
 
   const { data: settings } = useQuery<GameSettings>({
     queryKey: ["/api/settings"],
@@ -147,7 +151,7 @@ export default function Game() {
 
   const { data: currentQuestion, refetch: refetchQuestion, isFetching: isLoadingQuestion } = useQuery<PublicQuestion>({
     queryKey: ["/api/questions/next"],
-    enabled: gameState?.gamePhase === "combat",
+    enabled: gameState?.gamePhase === "combat" || isRevealQuestionActive,
     staleTime: 0,
     gcTime: 0,
   });
@@ -159,7 +163,24 @@ export default function Game() {
     },
     onSuccess: (result) => {
       const activeState = gameStateRef.current;
-      if (!activeState || activeState.gamePhase !== "combat" || !encounterRef.current) return;
+      if (!activeState) return;
+
+      const isRevealQuestion = revealQuestionActiveRef.current;
+      if (isRevealQuestion) {
+        setFeedbackResult(result);
+        setIsRevealQuestionActive(false);
+
+        if (result.correct) {
+          const updatedMaze = revealTiles(activeState.maze, activeState.playerPosition, 5, false);
+          setGameState((prev) => prev ? { ...prev, maze: updatedMaze } : prev);
+          setCombatMessage("Reveal bonus successful! Nearby tiles were uncovered.");
+        } else {
+          setCombatMessage("Reveal question missed. Try again when you're ready.");
+        }
+        return;
+      }
+
+      if (activeState.gamePhase !== "combat" || !encounterRef.current) return;
 
       setFeedbackResult(result);
 
@@ -260,6 +281,7 @@ export default function Game() {
     setSessionTime(0);
     setMaxStreak(0);
     setFeedbackResult(null);
+    setIsRevealQuestionActive(false);
 
     setPickups(buildPickups(maze));
     setPotions(0);
@@ -271,24 +293,24 @@ export default function Game() {
   }, [mazeWidth, mazeHeight]);
 
   const handleAnswerSubmit = (answer: string) => {
-    if (currentQuestion && gameState?.gamePhase === "combat") {
-      submitAnswerMutation.mutate({
-        questionId: currentQuestion.id,
-        answer,
-      });
-    }
+    if (!currentQuestion) return;
+    if (gameState?.gamePhase !== "combat" && !isRevealQuestionActive) return;
+
+    submitAnswerMutation.mutate({
+      questionId: currentQuestion.id,
+      answer,
+    });
   };
 
   const handleFeedbackContinue = () => {
     setFeedbackResult(null);
   };
 
-  const handleRevealAreaBonus = () => {
-    if (!gameState || !feedbackResult?.correct) return;
-    const updatedMaze = revealTiles(gameState.maze, gameState.playerPosition, 5, false);
-    setGameState((prev) => prev ? { ...prev, maze: updatedMaze } : prev);
-    setCombatMessage("You used your reveal bonus and uncovered nearby tiles.");
-    setFeedbackResult(null);
+  const handleRevealAreaQuestion = () => {
+    if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen) return;
+    setIsRevealQuestionActive(true);
+    setCombatMessage("Answer this French question correctly to reveal 5 tiles.");
+    queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
   };
 
   const handleUsePotion = () => {
@@ -302,7 +324,7 @@ export default function Game() {
   };
 
   const handleTileClick = (x: number, y: number) => {
-    if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || feedbackResult) return;
+    if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || feedbackResult || isRevealQuestionActive) return;
 
     const dx = Math.abs(x - gameState.playerPosition.x);
     const dy = Math.abs(y - gameState.playerPosition.y);
@@ -377,7 +399,7 @@ export default function Game() {
   };
 
   const handleMove = (direction: "up" | "down" | "left" | "right") => {
-    if (!gameState) return;
+    if (!gameState || isFeedbackModalOpen || isRevealQuestionActive) return;
     const { x, y } = gameState.playerPosition;
     let newX = x;
     let newY = y;
@@ -396,7 +418,7 @@ export default function Game() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || feedbackResult) return;
+      if (!gameState || gameState.gamePhase !== "exploring" || weaponChoice || isFeedbackModalOpen || isRevealQuestionActive) return;
 
       const { x, y } = gameState.playerPosition;
       let newX = x;
@@ -435,7 +457,7 @@ export default function Game() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [gameState, weaponChoice, feedbackResult, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
+  }, [gameState, weaponChoice, isFeedbackModalOpen, isRevealQuestionActive, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
 
   if (!gameState || gameState.gamePhase === "start") {
     return <StartScreen onStart={startGame} />;
@@ -509,15 +531,26 @@ export default function Game() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <div className="order-2 lg:order-1">
-            <MazeGrid
-              maze={gameState.maze}
-              playerPosition={gameState.playerPosition}
-              isMoving={gameState.gamePhase === "exploring"}
-              remainingSteps={0}
-              hasStepLimit={false}
-              onTileClick={handleTileClick}
-              onMove={handleMove}
-            />
+            <div className="space-y-4">
+              <MazeGrid
+                maze={gameState.maze}
+                playerPosition={gameState.playerPosition}
+                isMoving={gameState.gamePhase === "exploring" && !isFeedbackModalOpen && !isRevealQuestionActive}
+                remainingSteps={0}
+                hasStepLimit={false}
+                onTileClick={handleTileClick}
+                onMove={handleMove}
+              />
+              <Button
+                className="w-full"
+                variant={isRevealQuestionActive ? "secondary" : "default"}
+                onClick={handleRevealAreaQuestion}
+                disabled={isRevealQuestionActive || gameState.gamePhase !== "exploring" || isFeedbackModalOpen}
+                data-testid="button-reveal-area-question"
+              >
+                {isRevealQuestionActive ? "Answering reveal question..." : "Reveal 5 Tiles"}
+              </Button>
+            </div>
           </div>
 
           <div className="order-1 lg:order-2">
@@ -552,7 +585,27 @@ export default function Game() {
               </div>
             )}
 
-            {gameState.gamePhase === "exploring" && (
+            {isRevealQuestionActive && currentQuestion && !isLoadingQuestion && (
+              <div className="space-y-4">
+                <div className="rounded-lg border bg-card p-4">
+                  <h2 className="font-display text-2xl font-bold">✨ Reveal Challenge</h2>
+                  <p className="text-muted-foreground">Answer correctly to reveal a 5-tile radius around your current position.</p>
+                </div>
+                <QuestionPanel
+                  question={currentQuestion}
+                  onSubmit={handleAnswerSubmit}
+                  isSubmitting={submitAnswerMutation.isPending}
+                />
+              </div>
+            )}
+
+            {isRevealQuestionActive && isLoadingQuestion && (
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent" />
+              </div>
+            )}
+
+            {gameState.gamePhase === "exploring" && !isRevealQuestionActive && (
               <div className="text-center py-12">
                 <h2 className="font-display text-2xl font-bold text-foreground mb-2">Explore the Dungeon</h2>
                 <p className="text-muted-foreground">Move with arrow buttons or keyboard arrows.</p>
@@ -566,7 +619,6 @@ export default function Game() {
         <FeedbackModal
           result={feedbackResult}
           onContinue={handleFeedbackContinue}
-          onRevealArea={feedbackResult.correct ? handleRevealAreaBonus : undefined}
         />
       )}
 
