@@ -449,9 +449,13 @@ export function selectNextQuestion(questionStates: Map<string, { streak: number;
   return scoredQuestions[0].question;
 }
 
+function removeAccents(str: string): string {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 export function checkAnswer(question: Question, answer: string): boolean {
-  const normalizedAnswer = answer.toLowerCase().trim();
-  const normalizedCorrect = question.correctAnswer.toLowerCase().trim();
+  const normalizedAnswer = removeAccents(answer.toLowerCase().trim());
+  const normalizedCorrect = removeAccents(question.correctAnswer.toLowerCase().trim());
   
   return normalizedAnswer === normalizedCorrect;
 }

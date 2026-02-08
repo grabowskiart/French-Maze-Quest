@@ -4,6 +4,10 @@ import { db } from "./db";
 import { eq, and, inArray, sql, desc, asc, or, isNull } from "drizzle-orm";
 import { questionBank, checkAnswer } from "./questionBank";
 
+function removeAccents(str: string): string {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 interface QuestionStateMap {
   streak: number;
   lastSeen: number | null;
@@ -181,8 +185,8 @@ export class DatabaseStorage implements IStorage {
       };
     }
     
-    const normalizedAnswer = answer.toLowerCase().trim();
-    const normalizedCorrect = dbQuestion.correctAnswer.toLowerCase().trim();
+    const normalizedAnswer = removeAccents(answer.toLowerCase().trim());
+    const normalizedCorrect = removeAccents(dbQuestion.correctAnswer.toLowerCase().trim());
     const isCorrect = normalizedAnswer === normalizedCorrect;
 
     const [existingState] = await db.select().from(questionStates).where(eq(questionStates.questionId, qId)).limit(1);
