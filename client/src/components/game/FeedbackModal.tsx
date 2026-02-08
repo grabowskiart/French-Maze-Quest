@@ -79,7 +79,7 @@ export function FeedbackModal({ result, onContinue }: FeedbackModalProps) {
               className="w-full h-12 text-lg font-bold font-display mt-4"
               data-testid="button-continue"
             >
-              {result.correct ? "Choose Your Reward" : "Continue"}
+              Continue
             </Button>
           </div>
         </CardContent>
