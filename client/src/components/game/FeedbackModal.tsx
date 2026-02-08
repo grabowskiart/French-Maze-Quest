@@ -75,16 +75,6 @@ export function FeedbackModal({ result, onContinue, onRevealArea }: FeedbackModa
               </div>
             )}
 
-            {result.correct && onRevealArea && (
-              <Button
-                onClick={onRevealArea}
-                variant="secondary"
-                className="w-full h-12 text-lg font-bold font-display mt-2"
-                data-testid="button-reveal-area"
-              >
-                Reveal 5 Tiles
-              </Button>
-            )}
 
             <Button
               onClick={onContinue}
