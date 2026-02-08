@@ -1,4 +1,4 @@
-import type { Question, QuestionType, ProficiencyLevel, Category, ConjugationPack, GameSettings, DbQuestion, QuestionState as DbQuestionState } from "@shared/schema";
+import type { Question, PublicQuestion, QuestionType, ProficiencyLevel, Category, ConjugationPack, GameSettings, DbQuestion, QuestionState as DbQuestionState } from "@shared/schema";
 import { categories, conjugationPacks, questions, questionStates, gameSettings } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, sql, desc, asc, or, isNull } from "drizzle-orm";
@@ -10,7 +10,7 @@ interface QuestionStateMap {
 }
 
 export interface IStorage {
-  getNextQuestion(): Promise<Question>;
+  getNextQuestion(): Promise<PublicQuestion>;
   submitAnswer(questionId: string, answer: string): Promise<{
     correct: boolean;
     correctAnswer: string;
@@ -42,8 +42,23 @@ function dbQuestionToQuestion(dbQ: DbQuestion, state?: DbQuestionState | null, c
   };
 }
 
+function toPublicQuestion(question: Question): PublicQuestion {
+  const { id, type, question: prompt, options, difficulty, streak, lastSeen, category, proficiencyLevel } = question;
+  return {
+    id,
+    type,
+    question: prompt,
+    options,
+    difficulty,
+    streak,
+    lastSeen,
+    category,
+    proficiencyLevel,
+  };
+}
+
 export class DatabaseStorage implements IStorage {
-  async getNextQuestion(): Promise<Question> {
+  async getNextQuestion(): Promise<PublicQuestion> {
     const settings = await this.getSettings();
     const now = new Date();
     
@@ -83,7 +98,7 @@ export class DatabaseStorage implements IStorage {
       .limit(50);
 
     if (dbQuestions.length === 0) {
-      return questionBank[Math.floor(Math.random() * questionBank.length)];
+      return toPublicQuestion(questionBank[Math.floor(Math.random() * questionBank.length)]);
     }
 
     // First, separate questions into "available" (not seen in last 30 seconds) and "cooldown"
@@ -140,7 +155,7 @@ export class DatabaseStorage implements IStorage {
     });
 
     scoredQuestions.sort((a, b) => b.score - a.score);
-    return scoredQuestions[0].question;
+    return toPublicQuestion(scoredQuestions[0].question);
   }
 
   async submitAnswer(questionId: string, answer: string): Promise<{
@@ -260,7 +275,7 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async getNextQuestion(): Promise<Question> {
+  async getNextQuestion(): Promise<PublicQuestion> {
     const now = Date.now();
     
     const scoredQuestions = questionBank.map((q) => {
@@ -284,7 +299,7 @@ export class MemStorage implements IStorage {
     
     scoredQuestions.sort((a, b) => b.score - a.score);
     
-    return scoredQuestions[0].question;
+    return toPublicQuestion(scoredQuestions[0].question);
   }
 
   async submitAnswer(questionId: string, answer: string): Promise<{
