@@ -490,7 +490,8 @@ export default function Game() {
               maze={gameState.maze}
               playerPosition={gameState.playerPosition}
               isMoving={gameState.gamePhase === "exploring"}
-              remainingSteps={gameState.gamePhase === "exploring" ? 1 : 0}
+              remainingSteps={0}
+              hasStepLimit={false}
               onTileClick={handleTileClick}
               onMove={handleMove}
             />
