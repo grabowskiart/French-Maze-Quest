@@ -181,7 +181,7 @@ export interface GameState {
   questionsAnswered: number;
   correctAnswers: number;
   sessionStartTime: number;
-  gamePhase: "question" | "reward" | "moving" | "won" | "start";
+  gamePhase: "question" | "reward" | "moving" | "exploring" | "combat" | "won" | "start";
   remainingSteps: number;
   lastAnswerCorrect: boolean | null;
 }
