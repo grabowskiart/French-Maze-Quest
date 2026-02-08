@@ -103,6 +103,30 @@ function buildPickups(maze: Maze): Record<string, Pickup> {
   return pickups;
 }
 
+
+function revealArea(maze: Maze, center: Position, radius: number): Maze {
+  const newTiles = maze.tiles.map((row) => row.map((tile) => ({ ...tile })));
+
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const x = center.x + dx;
+      const y = center.y + dy;
+
+      if (x >= 0 && x < maze.width && y >= 0 && y < maze.height) {
+        const distance = Math.abs(dx) + Math.abs(dy);
+        if (distance <= radius && newTiles[y][x].fog === "hidden") {
+          newTiles[y][x].fog = "seen";
+        }
+      }
+    }
+  }
+
+  return {
+    ...maze,
+    tiles: newTiles,
+  };
+}
+
 export default function Game() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [sessionTime, setSessionTime] = useState(0);
@@ -285,7 +309,7 @@ export default function Game() {
 
   const handleRevealAreaBonus = () => {
     if (!gameState || !feedbackResult?.correct) return;
-    const updatedMaze = revealTiles(gameState.maze, gameState.playerPosition, 5, false);
+    const updatedMaze = revealArea(gameState.maze, gameState.playerPosition, 5);
     setGameState((prev) => prev ? { ...prev, maze: updatedMaze } : prev);
     setCombatMessage("You used your reveal bonus and uncovered nearby tiles.");
     setFeedbackResult(null);
