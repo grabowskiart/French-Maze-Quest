@@ -85,7 +85,7 @@ export function WinScreen({
             {showDragonVictoryScene && (
               <div className="w-full overflow-hidden rounded-xl border border-border bg-black/40">
                 <img
-                  src="/images/creatures/victory-scene.svg"
+                  src="/images/creatures/victory-scene.png"
                   alt="Chest of gold, fallen dragon, and dungeon exit"
                   className="h-[260px] w-full object-cover"
                 />
