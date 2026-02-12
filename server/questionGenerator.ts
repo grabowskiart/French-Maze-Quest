@@ -26,7 +26,8 @@ export async function generateQuestions(
   count: number = 5,
   categoryName?: string,
   proficiencyLevel: ProficiencyLevel = "beginner",
-  questionType?: QuestionType
+  questionType?: QuestionType,
+  categoryId?: number | null
 ): Promise<GeneratedQuestion[]> {
   const isVerbCategory = categoryName
     ? /\b(verb|conjugation)\b/i.test(categoryName)
@@ -48,12 +49,24 @@ export async function generateQuestions(
     advanced: "Include complex grammar, verb tenses (passé composé, imparfait), and more sophisticated vocabulary.",
   };
 
+  let existingQuestionsPrompt = "";
+  if (categoryId) {
+    const existing = await db
+      .select({ question: questions.question, correctAnswer: questions.correctAnswer })
+      .from(questions)
+      .where(eq(questions.categoryId, categoryId));
+    if (existing.length > 0) {
+      const list = existing.map(q => `- "${q.question}" (answer: ${q.correctAnswer})`).join("\n");
+      existingQuestionsPrompt = `\nThe following questions already exist in this category. Do NOT generate questions that are similar to or overlap with these. Each new question must test a DIFFERENT word, phrase, or concept:\n${list}\n`;
+    }
+  }
+
   const prompt = `Generate ${count} French learning questions for ${proficiencyLevel} level students (primarily children ages 6-12).
 
 ${typePrompt}
 ${categoryPrompt}
 ${levelDescriptions[proficiencyLevel]}
-
+${existingQuestionsPrompt}
 For each question, provide:
 - type: "mcq" (multiple choice), "fill" (fill in the blank), "conjugation", or "grammar"
 - question: The question text in English asking about French
@@ -69,6 +82,7 @@ Important rules:
 - For MCQ, always include exactly 4 options
 - For fill-in-blank, the correctAnswer should be a single word or short phrase
 - For conjugation, ask about conjugating specific verbs for specific pronouns
+- Every question must cover a DIFFERENT word or concept from any existing question listed above
 
 Return a JSON array of question objects.`;
 
@@ -151,7 +165,7 @@ export async function generateAndSaveQuestions(
     }
   }
 
-  const generated = await generateQuestions(count, categoryName, proficiencyLevel, questionType);
+  const generated = await generateQuestions(count, categoryName, proficiencyLevel, questionType, assignedCategoryId);
   
   let savedCount = 0;
   for (const q of generated) {
