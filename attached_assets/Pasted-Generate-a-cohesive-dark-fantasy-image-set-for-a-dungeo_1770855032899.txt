@@ -1,0 +1,70 @@
+Generate a cohesive dark-fantasy image set for a dungeon maze game.
+
+STYLE RULES (apply to ALL images):
+- Photorealistic / highly realistic dark fantasy style
+- Cinematic lighting, high contrast, gritty textures, atmospheric fog/embers
+- Menacing, scary tone, mature fantasy look
+- Consistent art direction across all creatures (as if from one game)
+- No text, no logos, no UI overlays, no watermarks
+- Portrait orientation feel, but square canvas output
+- 1024x1024 resolution
+- Full creature visible, centered composition, dramatic framing
+- Keep background in dungeon/cavern/labyrinth environments
+- Keep visual consistency between “alive” and “defeated” variants of the same creature
+
+Create the following outputs:
+
+1) Skeleton Scout (alive)
+2) Skeleton Scout (defeated)
+
+3) Goblin Raider (alive)
+4) Goblin Raider (defeated)
+
+5) Cave Troll (alive)
+6) Cave Troll (defeated)
+
+7) Basilisk Spawn (alive)
+8) Basilisk Spawn (defeated)
+
+9) Shadow Wraith (alive)
+10) Shadow Wraith (defeated)
+
+11) Crypt Ghoul (alive)
+12) Crypt Ghoul (defeated)
+
+13) Stone Gargoyle (alive)
+14) Stone Gargoyle (defeated)
+
+15) Bone Knight (alive)
+16) Bone Knight (defeated)
+
+17) Swamp Hag (alive)
+18) Swamp Hag (defeated)
+
+19) Infernal Imp (alive)
+20) Infernal Imp (defeated)
+
+21) Dungeon Minotaur (alive)
+22) Dungeon Minotaur (defeated)
+
+23) Nightmare Hound (alive)
+24) Nightmare Hound (defeated)
+
+25) Dragon Warden boss (alive)
+- Extra large and terrifying fire-breathing dragon guarding treasure
+- Epic scale, throne chamber/lair feel
+
+26) Dragon Warden boss (defeated)
+- Same dragon after defeat, cinematic aftermath, smoke/embers fading
+
+27) Final victory scene
+- Chest overflowing with gold in foreground
+- Defeated dragon visible in background
+- Dungeon exit archway visible
+- Triumphant but still dark-fantasy atmosphere
+
+IMPORTANT CONSISTENCY:
+- Keep each creature’s silhouette and identity recognizable between alive/defeated images.
+- Defeated versions should clearly indicate defeat (fallen posture, damage, dimmed eyes, etc.) without gore.
+- Maintain the same color palette and rendering quality for the full set.
+
