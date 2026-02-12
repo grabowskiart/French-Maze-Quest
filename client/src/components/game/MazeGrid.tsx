@@ -50,11 +50,23 @@ export function MazeGrid({
   const getPickupDisplay = (kind: "heart" | "potion" | "weapon") => {
     switch (kind) {
       case "heart":
-        return { icon: "❤️", label: "Heart", badgeClass: "bg-red-500/90" };
+        return {
+          icon: "❤",
+          label: "Heart",
+          badgeClass: "bg-red-500/95 text-white text-[10px]",
+        };
       case "potion":
-        return { icon: "🧪", label: "Potion", badgeClass: "bg-cyan-500/90" };
+        return {
+          icon: "🧪",
+          label: "Potion",
+          badgeClass: "bg-cyan-500/90 text-white",
+        };
       case "weapon":
-        return { icon: "⚔️", label: "Weapon", badgeClass: "bg-amber-500/90" };
+        return {
+          icon: "⚔️",
+          label: "Weapon",
+          badgeClass: "bg-amber-500/90 text-zinc-950",
+        };
     }
   };
 
