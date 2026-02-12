@@ -151,16 +151,11 @@ export async function generateAndSaveQuestions(
     categoryName = category?.displayName;
     assignedCategoryId = categoryId;
   } else {
-    // No specific category - get all active categories and pick randomly from them
     const activeCategories = await db.select().from(categories).where(eq(categories.isActive, true));
     
     if (activeCategories.length > 0) {
-      // Create a comma-separated list of active category names for the prompt
-      const categoryNames = activeCategories.map(c => c.displayName).join(", ");
-      categoryName = categoryNames;
-      
-      // Pick a random category to assign the questions to
       const randomCategory = activeCategories[Math.floor(Math.random() * activeCategories.length)];
+      categoryName = randomCategory.displayName;
       assignedCategoryId = randomCategory.id;
     }
   }
