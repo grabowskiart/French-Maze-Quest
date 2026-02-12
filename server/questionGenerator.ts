@@ -143,27 +143,46 @@ export async function generateAndSaveQuestions(
   questionType?: QuestionType
 ): Promise<number> {
   let categoryName: string | undefined;
+  let categorySlug: string | undefined;
   let assignedCategoryId: number | null = null;
   
-  if (categoryId) {
-    // Specific category requested
+  if (questionType === "conjugation") {
+    const [conjCategory] = await db.select().from(categories).where(eq(categories.name, "conjugation")).limit(1);
+    if (conjCategory) {
+      categoryName = conjCategory.displayName;
+      categorySlug = conjCategory.name;
+      assignedCategoryId = conjCategory.id;
+    }
+  } else if (categoryId) {
     const [category] = await db.select().from(categories).where(eq(categories.id, categoryId)).limit(1);
     categoryName = category?.displayName;
+    categorySlug = category?.name;
     assignedCategoryId = categoryId;
   } else {
     const activeCategories = await db.select().from(categories).where(eq(categories.isActive, true));
+    const nonVerbCategories = activeCategories.filter(c => !/\b(verb|conjugation)\b/i.test(c.name));
+    const pool = nonVerbCategories.length > 0 ? nonVerbCategories : activeCategories;
     
-    if (activeCategories.length > 0) {
-      const randomCategory = activeCategories[Math.floor(Math.random() * activeCategories.length)];
+    if (pool.length > 0) {
+      const randomCategory = pool[Math.floor(Math.random() * pool.length)];
       categoryName = randomCategory.displayName;
+      categorySlug = randomCategory.name;
       assignedCategoryId = randomCategory.id;
     }
   }
 
   const generated = await generateQuestions(count, categoryName, proficiencyLevel, questionType, assignedCategoryId);
   
+  const isVerbCategory = categorySlug
+    ? /\b(verb|conjugation)\b/i.test(categorySlug)
+    : false;
+
   let savedCount = 0;
   for (const q of generated) {
+    if (q.type === "conjugation" && !isVerbCategory) {
+      console.warn(`Blocking conjugation question from being saved to non-verb category "${categorySlug}"`);
+      continue;
+    }
     try {
       await db.insert(questions).values({
         type: q.type,
