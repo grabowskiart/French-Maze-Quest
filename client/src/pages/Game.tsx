@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
 import { BOSS_CREATURE, CREATURE_ROSTER, type ActiveEncounter } from "@/lib/creatures";
+import { playMoveSound, playEncounterSound, playPickupSound, playHitSound, playLoseLifeSound } from "@/lib/sounds";
 
 const DEFAULT_MAZE_SIZE = 30;
 const DEFAULT_VISIBILITY_RADIUS = 1;
@@ -203,6 +204,7 @@ export default function Game() {
       });
 
       if (result.correct) {
+        playHitSound();
         const dmg = Math.max(1, weaponRef.current.damage);
         const nextHp = encounterRef.current.hp - dmg;
         setCombatMessage(`Direct hit with ${weaponRef.current.name}! ${encounterRef.current.name} has ${Math.max(nextHp, 0)} HP left.`);
@@ -225,6 +227,7 @@ export default function Game() {
           refetchQuestion();
         }
       } else {
+        playLoseLifeSound();
         const nextHearts = heartsRef.current - 1;
         setHearts(nextHearts);
 
@@ -400,6 +403,7 @@ export default function Game() {
           remainingSteps: 0,
         });
         queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
+        playEncounterSound();
       }
       return;
     }
@@ -422,6 +426,7 @@ export default function Game() {
         delete next[pickupKey];
         return next;
       });
+      playPickupSound();
     } else if (pickup?.kind === "potion") {
       setPotions((prev) => prev + 1);
       setCombatMessage("You found a magic potion! It can instantly defeat one creature.");
@@ -434,9 +439,11 @@ export default function Game() {
         delete next[pickupKey];
         return next;
       });
+      playPickupSound();
     } else if (pickup?.kind === "weapon") {
       setWeaponChoice({ key: pickupKey, weapon: pickup.weapon });
       setCombatMessage(`You found ${pickup.weapon.name}. Choose to pick it up or leave it.`);
+      playPickupSound();
     }
 
     if (movedSteps >= nextEncounterAt) {
@@ -452,6 +459,7 @@ export default function Game() {
       });
       setStepsSinceEncounter(0);
       queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
+      playEncounterSound();
     } else {
       setStepsSinceEncounter(movedSteps);
       setGameState({
@@ -460,6 +468,7 @@ export default function Game() {
         playerPosition: newPosition,
         remainingSteps: 1,
       });
+      playMoveSound();
     }
   };
 
