@@ -28,12 +28,18 @@ export async function generateQuestions(
   proficiencyLevel: ProficiencyLevel = "beginner",
   questionType?: QuestionType
 ): Promise<GeneratedQuestion[]> {
+  const isVerbCategory = categoryName
+    ? /\b(verb|conjugation)\b/i.test(categoryName)
+    : false;
+
   const typePrompt = questionType 
     ? `Generate ${questionType} questions only.` 
-    : "Generate a mix of MCQ (multiple choice), fill-in-the-blank, and conjugation questions.";
+    : isVerbCategory
+      ? "Generate a mix of MCQ (multiple choice), fill-in-the-blank, and conjugation questions."
+      : "Generate a mix of MCQ (multiple choice), fill-in-the-blank, and grammar questions. Do NOT generate conjugation questions.";
     
   const categoryPrompt = categoryName 
-    ? `Focus on the category: ${categoryName}.` 
+    ? `Focus on the category: ${categoryName}. All questions must be directly related to this category topic.` 
     : "Cover various vocabulary and grammar topics.";
 
   const levelDescriptions: Record<ProficiencyLevel, string> = {
@@ -99,6 +105,10 @@ Return a JSON array of question objects.`;
     for (const q of questionsArray) {
       try {
         const validated = generatedQuestionSchema.parse(q);
+        if (validated.type === "conjugation" && !isVerbCategory) {
+          console.warn("Skipping conjugation question generated for non-verb category");
+          continue;
+        }
         validatedQuestions.push(validated);
       } catch (e) {
         console.warn("Skipping invalid question:", e);
