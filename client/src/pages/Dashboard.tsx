@@ -18,7 +18,8 @@ import {
   Hash,
   MessageCircle,
   Star,
-  Zap
+  Zap,
+  RotateCcw
 } from "lucide-react";
 import type { GameSettings, Category, ConjugationPack, QuestionType, ProficiencyLevel } from "@shared/schema";
 
@@ -45,6 +46,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [generatingLevel, setGeneratingLevel] = useState<ProficiencyLevel | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const { data: settings, isLoading: settingsLoading } = useQuery<GameSettings>({
     queryKey: ["/api/settings"],
@@ -132,6 +134,20 @@ export default function Dashboard() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to generate new verbs.", variant: "destructive" });
+    },
+  });
+
+  const resetStatsMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/stats/reset");
+      return res.json();
+    },
+    onSuccess: () => {
+      setShowResetConfirm(false);
+      toast({ title: "Statistics reset", description: "All question streaks and answer history have been cleared." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to reset statistics.", variant: "destructive" });
     },
   });
 
@@ -396,6 +412,48 @@ export default function Dashboard() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-destructive" />
+              Reset Statistics
+            </CardTitle>
+            <CardDescription>Clear all question streaks, answer counts, and progress tracking. This will reset the spaced repetition system so all questions are treated as new.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {showResetConfirm ? (
+              <div className="flex items-center gap-3 p-3 rounded-md border border-destructive/50 bg-destructive/5">
+                <p className="text-sm flex-1">Are you sure? This cannot be undone.</p>
+                <Button
+                  variant="destructive"
+                  onClick={() => resetStatsMutation.mutate()}
+                  disabled={resetStatsMutation.isPending}
+                  data-testid="button-confirm-reset-stats"
+                >
+                  {resetStatsMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Yes, Reset
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowResetConfirm(false)}
+                  data-testid="button-cancel-reset-stats"
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => setShowResetConfirm(true)}
+                data-testid="button-reset-stats"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset All Statistics
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

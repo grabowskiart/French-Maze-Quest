@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { answerSchema, updateGameSettingsSchema } from "@shared/schema";
+import { db } from "./db";
+import { answerSchema, updateGameSettingsSchema, questionStates } from "@shared/schema";
 import { z } from "zod";
 import { generateAndSaveQuestions, generateConjugationQuestions, generateConjugationPacks } from "./questionGenerator";
 
@@ -158,6 +159,21 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error generating conjugation packs:", error);
       res.status(500).json({ error: "Failed to generate conjugation packs" });
+    }
+  });
+
+  app.post("/api/stats/reset", async (_req, res) => {
+    try {
+      await db.update(questionStates).set({
+        streak: 0,
+        timesAnswered: 0,
+        timesCorrect: 0,
+        lastSeen: null,
+      });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error resetting stats:", error);
+      res.status(500).json({ error: "Failed to reset statistics" });
     }
   });
 
