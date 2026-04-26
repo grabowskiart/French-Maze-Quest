@@ -85,6 +85,10 @@ This is an educational game that combines French language learning with maze exp
 - `GET /api/settings` - Get current game settings
 - `PATCH /api/settings` - Update game settings
 
+### Statistics
+- `GET /api/stats` - Aggregated answer statistics: overall summary, per-category correct/incorrect counts, and top 10 questions that need more practice
+- `POST /api/stats/reset` - Reset all question streaks, answer counts, and last-seen timestamps
+
 ### Categories
 - `GET /api/categories` - List all categories with enabled status
 - `GET /api/categories/:id` - Get specific category

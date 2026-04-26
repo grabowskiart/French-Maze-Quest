@@ -179,6 +179,16 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/stats", async (_req, res) => {
+    try {
+      const stats = await storage.getStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      res.status(500).json({ error: "Failed to fetch statistics" });
+    }
+  });
+
   app.post("/api/stats/reset", async (_req, res) => {
     try {
       await db.update(questionStates).set({

@@ -32,6 +32,7 @@ import {
   Plus
 } from "lucide-react";
 import type { GameSettings, Category, ConjugationPack, QuestionType, ProficiencyLevel, Tense } from "@shared/schema";
+import { StatsPanel } from "@/components/dashboard/StatsPanel";
 
 const iconMap: Record<string, React.ReactNode> = {
   "hand-wave": <MessageCircle className="h-4 w-4" />,
@@ -182,6 +183,7 @@ export default function Dashboard() {
     },
     onSuccess: () => {
       setShowResetConfirm(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       toast({ title: "Statistics reset", description: "All question streaks and answer history have been cleared." });
     },
     onError: () => {
@@ -552,6 +554,8 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+
+        <StatsPanel />
       </main>
 
       <Dialog open={showAddVerbDialog} onOpenChange={(open) => {

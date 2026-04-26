@@ -1,4 +1,4 @@
-import type { Question, PublicQuestion, QuestionType, ProficiencyLevel, Category, ConjugationPack, GameSettings, DbQuestion, QuestionState as DbQuestionState } from "@shared/schema";
+import type { Question, PublicQuestion, QuestionType, ProficiencyLevel, Category, ConjugationPack, GameSettings, DbQuestion, QuestionState as DbQuestionState, StatsResponse } from "@shared/schema";
 import { categories, conjugationPacks, questions, questionStates, gameSettings } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, sql, desc, asc, or, isNull } from "drizzle-orm";
@@ -27,6 +27,7 @@ export interface IStorage {
   updateSettings(settings: Partial<GameSettings>): Promise<GameSettings>;
   toggleCategory(categoryId: number, isActive: boolean): Promise<void>;
   toggleConjugationPack(packId: number, isActive: boolean): Promise<void>;
+  getStats(): Promise<StatsResponse>;
 }
 
 function dbQuestionToQuestion(dbQ: DbQuestion, state?: DbQuestionState | null, categoryName?: string): Question {
@@ -278,6 +279,125 @@ export class DatabaseStorage implements IStorage {
       .set({ isActive })
       .where(eq(conjugationPacks.id, packId));
   }
+
+  async getStats(): Promise<StatsResponse> {
+    const allCategories = await db.select().from(categories);
+    const categoryNameById = new Map<number, string>();
+    for (const c of allCategories) categoryNameById.set(c.id, c.displayName);
+
+    const rows = await db
+      .select({
+        questionId: questions.id,
+        questionText: questions.question,
+        type: questions.type,
+        categoryId: questions.categoryId,
+        isActive: questions.isActive,
+        timesAnswered: questionStates.timesAnswered,
+        timesCorrect: questionStates.timesCorrect,
+        streak: questionStates.streak,
+      })
+      .from(questions)
+      .leftJoin(questionStates, eq(questionStates.questionId, questions.id))
+      .where(eq(questions.isActive, true));
+
+    let totalQuestions = 0;
+    let attemptedQuestions = 0;
+    let totalAnswers = 0;
+    let totalCorrect = 0;
+    let masteredQuestions = 0;
+
+    type CatAgg = { totalAnswers: number; totalCorrect: number; attempted: number; total: number };
+    const catAggById = new Map<number | null, CatAgg>();
+    const ensureCat = (id: number | null) => {
+      const key = id ?? -1;
+      if (!catAggById.has(key)) {
+        catAggById.set(key, { totalAnswers: 0, totalCorrect: 0, attempted: 0, total: 0 });
+      }
+      return catAggById.get(key)!;
+    };
+
+    const needsPracticeCandidates: Array<{
+      id: number;
+      question: string;
+      type: QuestionType;
+      categoryName: string;
+      timesAnswered: number;
+      timesCorrect: number;
+      streak: number;
+      accuracy: number;
+    }> = [];
+
+    for (const row of rows) {
+      totalQuestions += 1;
+      const answered = row.timesAnswered ?? 0;
+      const correct = row.timesCorrect ?? 0;
+      const streak = row.streak ?? 0;
+      totalAnswers += answered;
+      totalCorrect += correct;
+      if (answered > 0) attemptedQuestions += 1;
+      if (streak >= 3) masteredQuestions += 1;
+
+      const catKey = row.categoryId ?? null;
+      const agg = ensureCat(catKey);
+      agg.total += 1;
+      agg.totalAnswers += answered;
+      agg.totalCorrect += correct;
+      if (answered > 0) agg.attempted += 1;
+
+      if (answered > 0 && correct < answered) {
+        const accuracy = correct / answered;
+        const text = row.questionText ?? "";
+        const trimmed = text.length > 120 ? text.slice(0, 117) + "…" : text;
+        needsPracticeCandidates.push({
+          id: row.questionId,
+          question: trimmed,
+          type: row.type as QuestionType,
+          categoryName: row.categoryId ? (categoryNameById.get(row.categoryId) ?? "General") : "Verbs",
+          timesAnswered: answered,
+          timesCorrect: correct,
+          streak,
+          accuracy,
+        });
+      }
+    }
+
+    const totalIncorrect = totalAnswers - totalCorrect;
+    const accuracy = totalAnswers > 0 ? totalCorrect / totalAnswers : 0;
+
+    const byCategory = Array.from(catAggById.entries()).map(([key, agg]) => {
+      const id = key === -1 ? null : (key as number);
+      const name = id !== null ? (categoryNameById.get(id) ?? "Unknown") : "Verbs (Conjugation)";
+      return {
+        categoryId: id,
+        categoryName: name,
+        totalAnswers: agg.totalAnswers,
+        totalCorrect: agg.totalCorrect,
+        totalIncorrect: agg.totalAnswers - agg.totalCorrect,
+        attemptedQuestions: agg.attempted,
+        totalQuestions: agg.total,
+      };
+    }).sort((a, b) => b.totalAnswers - a.totalAnswers || a.categoryName.localeCompare(b.categoryName));
+
+    needsPracticeCandidates.sort((a, b) => {
+      if (a.accuracy !== b.accuracy) return a.accuracy - b.accuracy;
+      return b.timesAnswered - a.timesAnswered;
+    });
+    const needsPractice = needsPracticeCandidates.slice(0, 10);
+
+    return {
+      summary: {
+        totalQuestions,
+        attemptedQuestions,
+        totalAnswers,
+        totalCorrect,
+        totalIncorrect,
+        accuracy,
+        masteredQuestions,
+      },
+      byCategory,
+      needsPractice,
+    };
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -381,6 +501,21 @@ export class MemStorage implements IStorage {
 
   async toggleCategory(): Promise<void> {}
   async toggleConjugationPack(): Promise<void> {}
+  async getStats(): Promise<StatsResponse> {
+    return {
+      summary: {
+        totalQuestions: 0,
+        attemptedQuestions: 0,
+        totalAnswers: 0,
+        totalCorrect: 0,
+        totalIncorrect: 0,
+        accuracy: 0,
+        masteredQuestions: 0,
+      },
+      byCategory: [],
+      needsPractice: [],
+    };
+  }
 }
 
 export const storage = new DatabaseStorage();

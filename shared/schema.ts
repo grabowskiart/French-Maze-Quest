@@ -231,6 +231,43 @@ export const updateGameSettingsSchema = z.object({
 
 export type UpdateGameSettings = z.infer<typeof updateGameSettingsSchema>;
 
+export interface StatsSummary {
+  totalQuestions: number;
+  attemptedQuestions: number;
+  totalAnswers: number;
+  totalCorrect: number;
+  totalIncorrect: number;
+  accuracy: number;
+  masteredQuestions: number;
+}
+
+export interface CategoryStat {
+  categoryId: number | null;
+  categoryName: string;
+  totalAnswers: number;
+  totalCorrect: number;
+  totalIncorrect: number;
+  attemptedQuestions: number;
+  totalQuestions: number;
+}
+
+export interface NeedsPracticeQuestion {
+  id: number;
+  question: string;
+  type: QuestionType;
+  categoryName: string;
+  timesAnswered: number;
+  timesCorrect: number;
+  streak: number;
+  accuracy: number;
+}
+
+export interface StatsResponse {
+  summary: StatsSummary;
+  byCategory: CategoryStat[];
+  needsPractice: NeedsPracticeQuestion[];
+}
+
 export const categoriesRelations = relations(categories, ({ many }) => ({
   questions: many(questions),
 }));
