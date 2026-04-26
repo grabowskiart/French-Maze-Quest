@@ -6,6 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Link, useLocation } from "wouter";
 import { 
@@ -19,7 +28,8 @@ import {
   MessageCircle,
   Star,
   Zap,
-  RotateCcw
+  RotateCcw,
+  Plus
 } from "lucide-react";
 import type { GameSettings, Category, ConjugationPack, QuestionType, ProficiencyLevel } from "@shared/schema";
 
@@ -47,6 +57,8 @@ export default function Dashboard() {
   const [, navigate] = useLocation();
   const [generatingLevel, setGeneratingLevel] = useState<ProficiencyLevel | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showAddVerbDialog, setShowAddVerbDialog] = useState(false);
+  const [newVerbInput, setNewVerbInput] = useState("");
 
   const { data: settings, isLoading: settingsLoading } = useQuery<GameSettings>({
     queryKey: ["/api/settings"],
@@ -134,6 +146,32 @@ export default function Dashboard() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to generate new verbs.", variant: "destructive" });
+    },
+  });
+
+  const addSingleVerbMutation = useMutation({
+    mutationFn: async (verb: string): Promise<{ verbInfinitive: string | null; questionsGenerated: number; alreadyExists: boolean }> => {
+      const res = await apiRequest("POST", "/api/conjugation-packs/add-verb", { verb });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conjugation-packs"] });
+      setShowAddVerbDialog(false);
+      setNewVerbInput("");
+      if (data.alreadyExists) {
+        toast({
+          title: "Verb already exists",
+          description: `"${data.verbInfinitive}" is already in your conjugation packs.`,
+        });
+      } else {
+        toast({
+          title: "Verb added",
+          description: `Added "${data.verbInfinitive}" with ${data.questionsGenerated} conjugation questions.`,
+        });
+      }
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add the verb. Please try a different spelling.", variant: "destructive" });
     },
   });
 
@@ -352,6 +390,14 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 <Button
+                  onClick={() => setShowAddVerbDialog(true)}
+                  data-testid="button-open-add-single-verb"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add a Specific Verb
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={() => generateNewVerbsMutation.mutate(3)}
                   disabled={generateNewVerbsMutation.isPending}
                   data-testid="button-generate-verbs"
@@ -374,11 +420,14 @@ export default function Dashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Conjugation Packs ({conjugationPacks?.length || 0} verbs)</CardTitle>
-                <CardDescription>Enable or disable verb conjugation practice for specific verbs</CardDescription>
+                <CardDescription>Enable or disable verb conjugation practice for specific verbs (sorted alphabetically)</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 md:grid-cols-2">
-                  {conjugationPacks?.map((pack) => (
+                  {conjugationPacks
+                    ?.slice()
+                    .sort((a, b) => a.verbInfinitive.localeCompare(b.verbInfinitive, "fr", { sensitivity: "base" }))
+                    .map((pack) => (
                     <div key={pack.id} className="flex items-center justify-between p-3 rounded-md border" data-testid={`toggle-pack-${pack.id}`}>
                       <div className="flex items-center gap-3">
                         <div className="p-2 rounded-md bg-accent text-accent-foreground">
@@ -455,6 +504,63 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </main>
+
+      <Dialog open={showAddVerbDialog} onOpenChange={(open) => {
+        if (!addSingleVerbMutation.isPending) {
+          setShowAddVerbDialog(open);
+          if (!open) setNewVerbInput("");
+        }
+      }}>
+        <DialogContent data-testid="dialog-add-single-verb">
+          <DialogHeader>
+            <DialogTitle>Add a Specific Verb</DialogTitle>
+            <DialogDescription>
+              Type a verb in French (e.g., "manger") or English (e.g., "to eat"). AI will identify the verb and create a complete conjugation pack with all tenses.
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const trimmed = newVerbInput.trim();
+              if (trimmed && !addSingleVerbMutation.isPending) {
+                addSingleVerbMutation.mutate(trimmed);
+              }
+            }}
+            className="space-y-4"
+          >
+            <Input
+              autoFocus
+              placeholder="e.g., manger or to eat"
+              value={newVerbInput}
+              onChange={(e) => setNewVerbInput(e.target.value)}
+              disabled={addSingleVerbMutation.isPending}
+              data-testid="input-new-verb"
+            />
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowAddVerbDialog(false);
+                  setNewVerbInput("");
+                }}
+                disabled={addSingleVerbMutation.isPending}
+                data-testid="button-cancel-add-verb"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={!newVerbInput.trim() || addSingleVerbMutation.isPending}
+                data-testid="button-submit-add-verb"
+              >
+                {addSingleVerbMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Add Verb
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { answerSchema, updateGameSettingsSchema, questionStates } from "@shared/schema";
 import { z } from "zod";
-import { generateAndSaveQuestions, generateConjugationQuestions, generateConjugationPacks } from "./questionGenerator";
+import { generateAndSaveQuestions, generateConjugationQuestions, generateConjugationPacks, generateConjugationPackForVerb } from "./questionGenerator";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -142,6 +142,23 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error generating conjugation questions:", error);
       res.status(500).json({ error: "Failed to generate conjugation questions" });
+    }
+  });
+
+  app.post("/api/conjugation-packs/add-verb", async (req, res) => {
+    try {
+      const schema = z.object({
+        verb: z.string().trim().min(1, "Verb cannot be empty").max(100),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid verb input" });
+      }
+      const result = await generateConjugationPackForVerb(parsed.data.verb);
+      res.json({ success: true, ...result });
+    } catch (error) {
+      console.error("Error adding verb pack:", error);
+      res.status(500).json({ error: "Failed to add verb pack" });
     }
   });
 

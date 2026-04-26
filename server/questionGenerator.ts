@@ -327,6 +327,100 @@ Return a JSON object with a "verbs" array containing the verb packs.`;
   }
 }
 
+export async function generateConjugationPackForVerb(input: string): Promise<{ packId: number | null; verbInfinitive: string | null; questionsGenerated: number; alreadyExists: boolean }> {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    throw new Error("Verb input is empty");
+  }
+
+  const existingPacks = await db.select({ id: conjugationPacks.id, verbInfinitive: conjugationPacks.verbInfinitive, verbEnglish: conjugationPacks.verbEnglish }).from(conjugationPacks);
+
+  const prompt = `The user has provided the following input, which is a verb in either French or English: "${trimmed}".
+
+Identify the corresponding French verb and generate a complete conjugation pack for it.
+
+Provide:
+- verbInfinitive: The French verb in infinitive form (e.g., "pouvoir"). Always lowercase unless it requires capitalization.
+- verbEnglish: English translation (e.g., "to be able to/can")
+- group: French verb group (1 for -er verbs, 2 for -ir verbs with -issons pattern, 3 for irregular verbs)
+- conjugations: Object with present, imparfait, passé_composé, and futur tenses
+  - Each tense should have: je, tu, il, nous, vous, ils forms
+
+Important:
+- If the input is in English, find the most common/natural French verb that matches
+- If the input is in French (even misspelled), correct it to the proper infinitive
+- Ensure all conjugations are accurate
+- For passé composé, include the auxiliary verb (ai, as, a, avons, avez, ont OR suis, es, est, sommes, êtes, sont)
+- Use elision properly (e.g., "j'ai" not "je ai") in passé composé for "je"
+
+Return a JSON object with the verb pack fields directly (not wrapped in an array).`;
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: "You are a French language expert. Generate accurate verb conjugations for the verb the user provides. Always respond with valid JSON.",
+      },
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0.2,
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error("No content in response");
+  }
+
+  const parsed = JSON.parse(content);
+  const fullPackSchema = conjugationPackSchema.extend({
+    conjugations: z.object({
+      present: tenseSchema,
+      imparfait: tenseSchema,
+      "passé_composé": tenseSchema,
+      futur: tenseSchema,
+    }),
+  });
+  const validated = fullPackSchema.parse(parsed);
+
+  const existing = existingPacks.find(
+    p => p.verbInfinitive.toLowerCase() === validated.verbInfinitive.toLowerCase()
+  );
+  if (existing) {
+    return { packId: existing.id, verbInfinitive: existing.verbInfinitive, questionsGenerated: 0, alreadyExists: true };
+  }
+
+  const [insertedPack] = await db.insert(conjugationPacks).values({
+    verbInfinitive: validated.verbInfinitive,
+    verbEnglish: validated.verbEnglish,
+    group: validated.group,
+    conjugations: validated.conjugations,
+    isActive: true,
+  }).returning({ id: conjugationPacks.id });
+
+  if (!insertedPack) {
+    throw new Error("Failed to insert conjugation pack");
+  }
+
+  let questionsGenerated = 0;
+  try {
+    questionsGenerated = await generateConjugationQuestions(insertedPack.id);
+  } catch (e) {
+    console.warn(`Failed to generate questions for pack ${insertedPack.id}:`, e);
+  }
+
+  return {
+    packId: insertedPack.id,
+    verbInfinitive: validated.verbInfinitive,
+    questionsGenerated,
+    alreadyExists: false,
+  };
+}
+
 export async function generateConjugationQuestions(
   packId: number
 ): Promise<number> {
