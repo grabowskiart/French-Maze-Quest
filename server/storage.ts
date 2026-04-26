@@ -111,8 +111,7 @@ export class DatabaseStorage implements IStorage {
               : sql`false`
           )
         )
-      )
-      .limit(50);
+      );
 
     if (dbQuestions.length === 0) {
       return toPublicQuestion(questionBank[Math.floor(Math.random() * questionBank.length)]);
