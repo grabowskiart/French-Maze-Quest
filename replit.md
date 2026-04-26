@@ -114,9 +114,9 @@ Access the parent dashboard via the settings icon in the game header. Features:
 - **Question Types:** Toggle MCQ, Fill-in, Conjugation, Grammar questions
 - **Categories:** Enable/disable specific vocabulary categories
 - **Levels:** Choose proficiency levels (Beginner, Elementary, etc.)
-- **Conjugation:** Enable/disable verb conjugation packs, generate new verb packs
+- **Conjugation:** Toggle which tenses to practice (Présent, Imparfait, Passé Composé, Futur), enable/disable verb conjugation packs, generate new verb packs, add specific verbs by name
 - **Generate Questions:** AI-powered question generation by category and difficulty
-- **Generate Verbs:** Add new verb conjugation packs ordered by frequency of usage
+- **Generate Verbs:** Add new verb conjugation packs ordered by frequency of usage, or add a specific verb (French or English)
 
 ## User Preferences
 

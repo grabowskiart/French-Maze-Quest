@@ -73,7 +73,9 @@ export class DatabaseStorage implements IStorage {
     const enabledConjPacks = settings.enabledConjugationPackIds?.length
       ? settings.enabledConjugationPackIds
       : (await db.select({ id: conjugationPacks.id }).from(conjugationPacks).where(eq(conjugationPacks.isActive, true))).map(p => p.id);
-    
+
+    const enabledTenses = settings.enabledTenses ?? ["present", "imparfait", "passé_composé", "futur"];
+
     const dbQuestions = await db.select()
       .from(questions)
       .leftJoin(questionStates, eq(questions.id, questionStates.questionId))
@@ -96,6 +98,16 @@ export class DatabaseStorage implements IStorage {
             enabledConjPacks.length
               ? inArray(questions.conjugationPackId, enabledConjPacks)
               : sql`true`
+          ),
+          // Filter conjugation questions by enabled tenses; non-conjugation rows pass through
+          or(
+            sql`${questions.type} != 'conjugation'`,
+            enabledTenses.length
+              ? or(
+                  inArray(questions.tense, enabledTenses),
+                  isNull(questions.tense)
+                )
+              : sql`false`
           )
         )
       )
@@ -352,6 +364,7 @@ export class MemStorage implements IStorage {
       enabledProficiencyLevels: ["beginner"],
       enabledCategoryIds: [],
       enabledConjugationPackIds: [],
+      enabledTenses: ["present", "imparfait", "passé_composé", "futur"],
       mazeWidth: 30,
       mazeHeight: 30,
       visibilityRadius: 1,

@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { db } from "./db";
 import { questions, categories, conjugationPacks } from "@shared/schema";
-import type { QuestionType, ProficiencyLevel, Conjugations } from "@shared/schema";
+import type { QuestionType, ProficiencyLevel, Conjugations, Tense } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -455,6 +455,7 @@ export async function generateConjugationQuestions(
     proficiencyLevel: ProficiencyLevel;
     conjugationPackId: number;
     categoryId: number | null;
+    tense: Tense;
     isGenerated: boolean;
     isActive: boolean;
   }> = [];
@@ -480,6 +481,7 @@ export async function generateConjugationQuestions(
         proficiencyLevel: tense === "present" ? "beginner" : "intermediate",
         conjugationPackId: packId,
         categoryId,
+        tense: tense as Tense,
         isGenerated: true,
         isActive: true,
       });

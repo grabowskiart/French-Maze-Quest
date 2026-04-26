@@ -28,6 +28,8 @@ export interface Maze {
 
 export type QuestionType = "mcq" | "fill" | "conjugation" | "grammar";
 export type ProficiencyLevel = "beginner" | "intermediate" | "advanced";
+export type Tense = "present" | "imparfait" | "passé_composé" | "futur";
+export const ALL_TENSES: Tense[] = ["present", "imparfait", "passé_composé", "futur"];
 
 export const categories = pgTable("categories", {
   id: serial("id").primaryKey(),
@@ -61,6 +63,7 @@ export const questions = pgTable("questions", {
   proficiencyLevel: varchar("proficiency_level", { length: 20 }).default("beginner").notNull().$type<ProficiencyLevel>(),
   categoryId: integer("category_id").references(() => categories.id),
   conjugationPackId: integer("conjugation_pack_id").references(() => conjugationPacks.id),
+  tense: varchar("tense", { length: 20 }).$type<Tense>(),
   isGenerated: boolean("is_generated").default(false).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -84,6 +87,7 @@ export const gameSettings = pgTable("game_settings", {
   enabledProficiencyLevels: jsonb("enabled_proficiency_levels").default(["beginner"]).notNull().$type<ProficiencyLevel[]>(),
   enabledCategoryIds: jsonb("enabled_category_ids").default([]).notNull().$type<number[]>(),
   enabledConjugationPackIds: jsonb("enabled_conjugation_pack_ids").default([]).notNull().$type<number[]>(),
+  enabledTenses: jsonb("enabled_tenses").default(["present", "imparfait", "passé_composé", "futur"]).notNull().$type<Tense[]>(),
   mazeWidth: integer("maze_width").default(30).notNull(),
   mazeHeight: integer("maze_height").default(30).notNull(),
   visibilityRadius: integer("visibility_radius").default(1).notNull(),
@@ -216,6 +220,7 @@ export const updateGameSettingsSchema = z.object({
   enabledProficiencyLevels: z.array(z.enum(["beginner", "intermediate", "advanced"])).optional(),
   enabledCategoryIds: z.array(z.number()).optional(),
   enabledConjugationPackIds: z.array(z.number()).optional(),
+  enabledTenses: z.array(z.enum(["present", "imparfait", "passé_composé", "futur"])).optional(),
   mazeWidth: z.number().min(10).max(50).optional(),
   mazeHeight: z.number().min(10).max(50).optional(),
   visibilityRadius: z.number().min(2).max(8).optional(),

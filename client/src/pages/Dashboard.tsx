@@ -31,7 +31,7 @@ import {
   RotateCcw,
   Plus
 } from "lucide-react";
-import type { GameSettings, Category, ConjugationPack, QuestionType, ProficiencyLevel } from "@shared/schema";
+import type { GameSettings, Category, ConjugationPack, QuestionType, ProficiencyLevel, Tense } from "@shared/schema";
 
 const iconMap: Record<string, React.ReactNode> = {
   "hand-wave": <MessageCircle className="h-4 w-4" />,
@@ -215,6 +215,26 @@ export default function Dashboard() {
     updateSettingsMutation.mutate({ enabledQuestionTypes: updated });
   };
 
+  const tenseOptions: { value: Tense; label: string; description: string }[] = [
+    { value: "present", label: "Présent", description: "Present tense (je parle, tu parles…)" },
+    { value: "imparfait", label: "Imparfait", description: "Past continuous (je parlais…)" },
+    { value: "passé_composé", label: "Passé Composé", description: "Compound past (j'ai parlé…)" },
+    { value: "futur", label: "Futur", description: "Simple future (je parlerai…)" },
+  ];
+
+  const toggleTense = (tense: Tense) => {
+    if (!settings) return;
+    const current = settings.enabledTenses ?? ["present", "imparfait", "passé_composé", "futur"];
+    const updated = current.includes(tense)
+      ? current.filter((t) => t !== tense)
+      : [...current, tense];
+    if (updated.length === 0) {
+      toast({ title: "Warning", description: "At least one tense must be enabled.", variant: "destructive" });
+      return;
+    }
+    updateSettingsMutation.mutate({ enabledTenses: updated });
+  };
+
   const toggleProficiencyLevel = (level: ProficiencyLevel) => {
     if (!settings) return;
     const current = settings.enabledProficiencyLevels || [];
@@ -380,6 +400,35 @@ export default function Dashboard() {
           </TabsContent>
 
           <TabsContent value="verbs" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Tenses to Practice</CardTitle>
+                <CardDescription>Choose which verb tenses to include in conjugation questions</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {tenseOptions.map((tense) => {
+                  const enabled = settings?.enabledTenses?.includes(tense.value) ?? true;
+                  return (
+                    <div
+                      key={tense.value}
+                      className="flex items-center justify-between p-3 rounded-md border"
+                      data-testid={`toggle-tense-${tense.value}`}
+                    >
+                      <div>
+                        <p className="font-medium">{tense.label}</p>
+                        <p className="text-sm text-muted-foreground">{tense.description}</p>
+                      </div>
+                      <Switch
+                        checked={enabled}
+                        onCheckedChange={() => toggleTense(tense.value)}
+                        data-testid={`switch-tense-${tense.value}`}
+                      />
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
