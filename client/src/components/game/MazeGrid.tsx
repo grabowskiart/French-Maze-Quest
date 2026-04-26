@@ -70,118 +70,117 @@ export function MazeGrid({
   };
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      {/* Up arrow */}
-      <Button
-        size="icon"
-        variant={canMoveInDirection("up") ? "default" : "outline"}
-        disabled={!canMoveInDirection("up")}
-        onClick={() => onMove?.("up")}
-        data-testid="button-move-up"
-        className="h-10 w-10"
-      >
-        <ChevronUp className="h-6 w-6" />
-      </Button>
+    <div className="flex flex-col items-center gap-3 w-full">
+      {/* Maze grid - responsive square that scales down on small screens */}
+      <div className="relative w-full max-w-[400px] aspect-square rounded-lg overflow-hidden shadow-xl border-2 border-card">
+        <div
+          className="grid h-full w-full bg-maze-wall/50"
+          style={{
+            gridTemplateColumns: `repeat(${maze.width}, 1fr)`,
+            gridTemplateRows: `repeat(${maze.height}, 1fr)`,
+          }}
+        >
+          {maze.tiles.map((row) =>
+            row.map((tile) => {
+              const isPlayer =
+                tile.x === playerPosition.x && tile.y === playerPosition.y;
+              const isEntrance =
+                tile.x === maze.entrance.x && tile.y === maze.entrance.y;
+              const isExit = tile.x === maze.exit.x && tile.y === maze.exit.y;
+              const pickupKind = pickupMarkers[`${tile.x},${tile.y}`];
 
-      <div className="flex items-center gap-2">
-        {/* Left arrow */}
+              return (
+                <div
+                  key={`${tile.x}-${tile.y}`}
+                  className={getTileClasses(tile, isPlayer)}
+                  data-testid={`tile-${tile.x}-${tile.y}`}
+                >
+                  {tile.fog !== "hidden" && (
+                    <>
+                      {isPlayer && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-primary rounded-sm z-10" />
+                      )}
+                      {pickupKind && !isPlayer && (() => {
+                        const pickupDisplay = getPickupVisual(pickupKind);
+                        return (
+                          <div
+                            className="absolute inset-0 flex items-center justify-center z-[5]"
+                            title={pickupDisplay.label}
+                            aria-label={pickupDisplay.label}
+                          >
+                            <div className={`h-3.5 w-3.5 rounded-full text-[9px] leading-none flex items-center justify-center shadow-sm ${pickupDisplay.badgeClass}`}>
+                              {pickupDisplay.icon}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {isEntrance && !isPlayer && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 bg-maze-entrance rounded-full" />
+                        </div>
+                      )}
+                      {isExit && !isPlayer && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 bg-maze-exit rounded-full" />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* D-pad controls below the maze (true 3x3 cross, mobile-friendly) */}
+      <div className="grid grid-cols-3 gap-1.5" data-testid="dpad-controls">
+        <div />
+        <Button
+          size="icon"
+          variant={canMoveInDirection("up") ? "default" : "outline"}
+          disabled={!canMoveInDirection("up")}
+          onClick={() => onMove?.("up")}
+          data-testid="button-move-up"
+          className="h-11 w-11"
+        >
+          <ChevronUp className="h-6 w-6" />
+        </Button>
+        <div />
         <Button
           size="icon"
           variant={canMoveInDirection("left") ? "default" : "outline"}
           disabled={!canMoveInDirection("left")}
           onClick={() => onMove?.("left")}
           data-testid="button-move-left"
-          className="h-10 w-10"
+          className="h-11 w-11"
         >
           <ChevronLeft className="h-6 w-6" />
         </Button>
-
-        {/* Maze grid - full size with tiny tiles */}
-        <div className="relative w-[400px] h-[400px] rounded-lg overflow-hidden shadow-xl border-2 border-card">
-          <div
-            className="grid h-full w-full bg-maze-wall/50"
-            style={{
-              gridTemplateColumns: `repeat(${maze.width}, 1fr)`,
-              gridTemplateRows: `repeat(${maze.height}, 1fr)`,
-            }}
-          >
-            {maze.tiles.map((row, rowIndex) =>
-              row.map((tile, colIndex) => {
-                const isPlayer =
-                  tile.x === playerPosition.x && tile.y === playerPosition.y;
-                const isEntrance =
-                  tile.x === maze.entrance.x && tile.y === maze.entrance.y;
-                const isExit = tile.x === maze.exit.x && tile.y === maze.exit.y;
-                const pickupKind = pickupMarkers[`${tile.x},${tile.y}`];
-
-                return (
-                  <div
-                    key={`${tile.x}-${tile.y}`}
-                    className={getTileClasses(tile, isPlayer)}
-                    data-testid={`tile-${tile.x}-${tile.y}`}
-                  >
-                    {tile.fog !== "hidden" && (
-                      <>
-                        {isPlayer && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-primary rounded-sm z-10" />
-                        )}
-                        {pickupKind && !isPlayer && (() => {
-                          const pickupDisplay = getPickupVisual(pickupKind);
-                          return (
-                            <div
-                              className="absolute inset-0 flex items-center justify-center z-[5]"
-                              title={pickupDisplay.label}
-                              aria-label={pickupDisplay.label}
-                            >
-                              <div className={`h-3.5 w-3.5 rounded-full text-[9px] leading-none flex items-center justify-center shadow-sm ${pickupDisplay.badgeClass}`}>
-                                {pickupDisplay.icon}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                        {isEntrance && !isPlayer && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-1.5 h-1.5 bg-maze-entrance rounded-full" />
-                          </div>
-                        )}
-                        {isExit && !isPlayer && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-1.5 h-1.5 bg-maze-exit rounded-full" />
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        {/* Right arrow */}
+        <div />
         <Button
           size="icon"
           variant={canMoveInDirection("right") ? "default" : "outline"}
           disabled={!canMoveInDirection("right")}
           onClick={() => onMove?.("right")}
           data-testid="button-move-right"
-          className="h-10 w-10"
+          className="h-11 w-11"
         >
           <ChevronRight className="h-6 w-6" />
         </Button>
+        <div />
+        <Button
+          size="icon"
+          variant={canMoveInDirection("down") ? "default" : "outline"}
+          disabled={!canMoveInDirection("down")}
+          onClick={() => onMove?.("down")}
+          data-testid="button-move-down"
+          className="h-11 w-11"
+        >
+          <ChevronDown className="h-6 w-6" />
+        </Button>
+        <div />
       </div>
-
-      {/* Down arrow */}
-      <Button
-        size="icon"
-        variant={canMoveInDirection("down") ? "default" : "outline"}
-        disabled={!canMoveInDirection("down")}
-        onClick={() => onMove?.("down")}
-        data-testid="button-move-down"
-        className="h-10 w-10"
-      >
-        <ChevronDown className="h-6 w-6" />
-      </Button>
 
       {isMoving && hasStepLimit && remainingSteps > 0 && (
         <div className="mt-2">

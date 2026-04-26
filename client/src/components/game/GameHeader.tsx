@@ -22,37 +22,35 @@ export function GameHeader({ streak, questionsAnswered, sessionTime }: GameHeade
 
   return (
     <header className="sticky top-0 z-50 w-full bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 border-b border-border rounded-b-2xl">
-      <div className="max-w-6xl mx-auto flex items-center justify-between gap-4 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl" role="img" aria-label="French flag">🇫🇷</span>
-            <h1 className="font-display text-xl sm:text-2xl font-bold text-foreground">
-              Maze Adventure
-            </h1>
-          </div>
+      <div className="max-w-6xl mx-auto flex items-center justify-between gap-2 sm:gap-4 px-3 sm:px-4 py-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-2xl shrink-0" role="img" aria-label="French flag">🇫🇷</span>
+          <h1 className="hidden sm:block font-display text-xl sm:text-2xl font-bold text-foreground truncate">
+            Maze Adventure
+          </h1>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1 sm:gap-4">
           <Badge
             variant="secondary"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold"
+            className="flex items-center gap-1 px-2 py-1 sm:gap-1.5 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-semibold"
             data-testid="badge-session-time"
           >
-            <Clock className="w-4 h-4 text-muted-foreground" />
+            <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
             <span>{formatTime(sessionTime)}</span>
           </Badge>
 
           <Badge
             variant="secondary"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold"
+            className="flex items-center gap-1 px-2 py-1 sm:gap-1.5 sm:px-3 sm:py-1.5 text-xs sm:text-sm font-semibold"
             data-testid="badge-questions-count"
           >
-            <HelpCircle className="w-4 h-4 text-muted-foreground" />
+            <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
             <span>{questionsAnswered}</span>
           </Badge>
 
           <div
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-sm transition-all ${
+            className={`flex items-center gap-1 px-2 py-1 sm:gap-1.5 sm:px-3 sm:py-1.5 rounded-md font-bold text-xs sm:text-sm transition-all ${
               streak >= 3
                 ? "bg-warning/20 text-warning-foreground dark:text-warning"
                 : "bg-muted text-muted-foreground"
@@ -60,7 +58,7 @@ export function GameHeader({ streak, questionsAnswered, sessionTime }: GameHeade
             data-testid="badge-streak"
           >
             <Flame
-              className={`w-5 h-5 ${
+              className={`w-4 h-4 sm:w-5 sm:h-5 ${
                 streak >= 3 ? "text-warning animate-pulse" : "text-muted-foreground"
               }`}
             />

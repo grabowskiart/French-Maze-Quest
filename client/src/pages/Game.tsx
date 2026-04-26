@@ -548,8 +548,8 @@ export default function Game() {
         sessionTime={sessionTime}
       />
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="mb-4 rounded-lg border bg-card p-4 text-sm space-y-2">
+      <main className="max-w-6xl mx-auto px-3 py-4 sm:px-4 sm:py-8">
+        <div className="mb-4 rounded-lg border bg-card p-3 sm:p-4 text-sm space-y-2">
           <div className="flex items-center gap-2 font-semibold" data-testid="status-hearts">
             <PickupIcon kind="heart" size="md" />
             <span>Hearts: {"❤️".repeat(hearts)} ({hearts})</span>
