@@ -1,6 +1,7 @@
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Maze, Position } from "@shared/schema";
+import { getPickupVisual, type PickupKind } from "./PickupIcon";
 
 interface MazeGridProps {
   maze: Maze;
@@ -8,7 +9,7 @@ interface MazeGridProps {
   isMoving: boolean;
   remainingSteps: number;
   hasStepLimit?: boolean;
-  pickupMarkers?: Record<string, "heart" | "potion" | "weapon">;
+  pickupMarkers?: Record<string, PickupKind>;
   onTileClick: (x: number, y: number) => void;
   onMove?: (direction: "up" | "down" | "left" | "right") => void;
 }
@@ -47,28 +48,6 @@ export function MazeGrid({
   };
 
 
-  const getPickupDisplay = (kind: "heart" | "potion" | "weapon") => {
-    switch (kind) {
-      case "heart":
-        return {
-          icon: "❤",
-          label: "Heart",
-          badgeClass: "bg-red-500/95 text-white text-[10px]",
-        };
-      case "potion":
-        return {
-          icon: "🧪",
-          label: "Potion",
-          badgeClass: "bg-cyan-500/90 text-white",
-        };
-      case "weapon":
-        return {
-          icon: "⚔️",
-          label: "Weapon",
-          badgeClass: "bg-amber-500/90 text-zinc-950",
-        };
-    }
-  };
 
   const canMoveInDirection = (direction: "up" | "down" | "left" | "right") => {
     if (!isMoving) return false;
@@ -147,7 +126,7 @@ export function MazeGrid({
                           <div className="absolute inset-0 flex items-center justify-center bg-primary rounded-sm z-10" />
                         )}
                         {pickupKind && !isPlayer && (() => {
-                          const pickupDisplay = getPickupDisplay(pickupKind);
+                          const pickupDisplay = getPickupVisual(pickupKind);
                           return (
                             <div
                               className="absolute inset-0 flex items-center justify-center z-[5]"

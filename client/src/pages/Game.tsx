@@ -13,24 +13,27 @@ import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
 import { BOSS_CREATURE, CREATURE_ROSTER, type ActiveEncounter } from "@/lib/creatures";
 import { playMoveSound, playEncounterSound, playPickupSound, playHitSound, playLoseLifeSound } from "@/lib/sounds";
+import { PickupIcon } from "@/components/game/PickupIcon";
 
 const DEFAULT_MAZE_SIZE = 30;
 const DEFAULT_VISIBILITY_RADIUS = 1;
 
 const WEAPON_POOL = [
-  { name: "Rusty Sword", damage: 1 },
-  { name: "Knight's Blade", damage: 2 },
-  { name: "War Axe", damage: 2 },
-  { name: "Spiked Mace", damage: 2 },
-  { name: "Moon Lance", damage: 3 },
-  { name: "Flame Saber", damage: 3 },
-  { name: "Dragonfang Spear", damage: 3 },
+  { name: "Rusty Sword", damage: 1, description: "An old blade that still bites." },
+  { name: "Knight's Blade", damage: 2, description: "Balanced steel forged for true heroes." },
+  { name: "War Axe", damage: 2, description: "Heavy chops that crack through armor." },
+  { name: "Spiked Mace", damage: 2, description: "Brutal spikes leave a nasty bruise." },
+  { name: "Moon Lance", damage: 3, description: "A glowing spear blessed by moonlight." },
+  { name: "Flame Saber", damage: 3, description: "A fiery curve that scorches enemies." },
+  { name: "Dragonfang Spear", damage: 3, description: "Forged from a true dragon's tooth." },
 ] as const;
+
+type Weapon = { name: string; damage: number; description: string };
 
 type Pickup =
   | { kind: "heart" }
   | { kind: "potion" }
-  | { kind: "weapon"; weapon: { name: string; damage: number } };
+  | { kind: "weapon"; weapon: Weapon };
 
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -126,9 +129,9 @@ export default function Game() {
 
   const [pickups, setPickups] = useState<Record<string, Pickup>>({});
   const [potions, setPotions] = useState(0);
-  const [weaponInventory, setWeaponInventory] = useState<Array<{ name: string; damage: number }>>([]);
-  const [equippedWeapon, setEquippedWeapon] = useState<{ name: string; damage: number }>({ name: "Bare Hands", damage: 1 });
-  const [weaponChoice, setWeaponChoice] = useState<{ key: string; weapon: { name: string; damage: number } } | null>(null);
+  const [weaponInventory, setWeaponInventory] = useState<Array<Weapon>>([]);
+  const [equippedWeapon, setEquippedWeapon] = useState<Weapon>({ name: "Bare Hands", damage: 1, description: "Just your fists. Better than nothing." });
+  const [weaponChoice, setWeaponChoice] = useState<{ key: string; weapon: Weapon } | null>(null);
   const [isRevealQuestionMode, setIsRevealQuestionMode] = useState(false);
 
   const heartsRef = useRef(hearts);
@@ -305,7 +308,7 @@ export default function Game() {
     setPickups(buildPickups(maze));
     setPotions(0);
     setWeaponInventory([]);
-    setEquippedWeapon({ name: "Bare Hands", damage: 1 });
+    setEquippedWeapon({ name: "Bare Hands", damage: 1, description: "Just your fists. Better than nothing." });
     setWeaponChoice(null);
     setIsRevealQuestionMode(false);
 
@@ -546,10 +549,25 @@ export default function Game() {
       />
 
       <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="mb-4 rounded-lg border bg-card p-4 text-sm space-y-1">
-          <p className="font-semibold">Hearts: {"❤️".repeat(hearts)} ({hearts})</p>
-          <p className="font-semibold">Potions: 🧪 {potions}</p>
-          <p className="font-semibold">Weapon: {equippedWeapon.name} (Damage {equippedWeapon.damage})</p>
+        <div className="mb-4 rounded-lg border bg-card p-4 text-sm space-y-2">
+          <div className="flex items-center gap-2 font-semibold" data-testid="status-hearts">
+            <PickupIcon kind="heart" size="md" />
+            <span>Hearts: {"❤️".repeat(hearts)} ({hearts})</span>
+          </div>
+          <div className="flex items-center gap-2 font-semibold" data-testid="status-potions">
+            <PickupIcon kind="potion" size="md" />
+            <span>Potions: {potions}</span>
+          </div>
+          <div className="flex items-start gap-2 font-semibold" data-testid="status-weapon">
+            <PickupIcon kind="weapon" size="md" className="mt-0.5" />
+            <div className="flex-1">
+              <div>
+                <span data-testid="text-weapon-name">{equippedWeapon.name}</span>
+                <span className="ml-2 text-muted-foreground font-normal" data-testid="text-weapon-damage">Damage {equippedWeapon.damage}</span>
+              </div>
+              <p className="text-xs text-muted-foreground font-normal" data-testid="text-weapon-description">{equippedWeapon.description}</p>
+            </div>
+          </div>
           <p className="text-muted-foreground">{combatMessage}</p>
           {gameState.gamePhase === "exploring" && (
             <p className="text-muted-foreground">Next encounter in {Math.max(0, nextEncounterAt - stepsSinceEncounter)} step(s).</p>
@@ -562,13 +580,25 @@ export default function Game() {
             </div>
           )}
           {weaponInventory.length > 0 && (
-            <p className="text-muted-foreground">Inventory: {weaponInventory.map((w) => `${w.name}(${w.damage})`).join(", ")}</p>
+            <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+              <span>Inventory:</span>
+              {weaponInventory.map((w, idx) => (
+                <span key={`${w.name}-${idx}`} className="inline-flex items-center gap-1" data-testid={`inventory-weapon-${idx}`}>
+                  <PickupIcon kind="weapon" size="sm" />
+                  <span>{w.name}({w.damage})</span>
+                </span>
+              ))}
+            </div>
           )}
         </div>
 
         {weaponChoice && (
           <div className="mb-4 rounded-lg border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-            <p className="flex-1">Found <strong>{weaponChoice.weapon.name}</strong> (Damage {weaponChoice.weapon.damage}). Pick it up?</p>
+            <PickupIcon kind="weapon" size="lg" />
+            <div className="flex-1">
+              <p>Found <strong>{weaponChoice.weapon.name}</strong> (Damage {weaponChoice.weapon.damage}). Pick it up?</p>
+              <p className="text-xs text-muted-foreground" data-testid="text-weapon-choice-description">{weaponChoice.weapon.description}</p>
+            </div>
             <Button
               onClick={() => {
                 setWeaponInventory((prev) => [...prev, weaponChoice.weapon]);
