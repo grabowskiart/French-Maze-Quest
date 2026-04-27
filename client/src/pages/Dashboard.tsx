@@ -7,6 +7,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -69,6 +71,7 @@ export default function Dashboard() {
   const [, navigate] = useLocation();
   const [generatingLevel, setGeneratingLevel] = useState<ProficiencyLevel | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetStatsScope, setResetStatsScope] = useState<string>("__all__");
   const [resetSaveTargetId, setResetSaveTargetId] = useState<string | null>(null);
   const [showAddVerbDialog, setShowAddVerbDialog] = useState(false);
   const [newVerbInput, setNewVerbInput] = useState("");
@@ -207,14 +210,23 @@ export default function Dashboard() {
   });
 
   const resetStatsMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/stats/reset");
+    mutationFn: async (profileId: string | null) => {
+      const body = profileId ? { profileId } : {};
+      const res = await apiRequest("POST", "/api/stats/reset", body);
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_data, profileId) => {
       setShowResetConfirm(false);
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      toast({ title: "Statistics reset", description: "All question streaks and answer history have been cleared." });
+      const profile = profileId
+        ? profileList.find((p) => p.id === profileId)
+        : null;
+      toast({
+        title: "Statistics reset",
+        description: profile
+          ? `${profile.name}'s question streaks and answer history have been cleared.`
+          : "All question streaks and answer history have been cleared.",
+      });
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to reset statistics.", variant: "destructive" });
@@ -646,15 +658,49 @@ export default function Dashboard() {
               <RotateCcw className="h-5 w-5 text-destructive" />
               Reset Statistics
             </CardTitle>
-            <CardDescription>Clear all question streaks, answer counts, and progress tracking. This will reset the spaced repetition system so all questions are treated as new.</CardDescription>
+            <CardDescription>Clear question streaks, answer counts, and progress tracking. This will reset the spaced repetition system so all questions are treated as new. You can reset every child's stats together, or just one child's.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
+            {profileList.length > 0 && (
+              <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                <Label htmlFor="reset-stats-scope" className="text-xs text-muted-foreground">
+                  Reset stats for
+                </Label>
+                <Select value={resetStatsScope} onValueChange={setResetStatsScope}>
+                  <SelectTrigger
+                    id="reset-stats-scope"
+                    className="h-8 w-full sm:w-56"
+                    data-testid="select-reset-stats-scope"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__" data-testid="option-reset-stats-all">
+                      All children (combined)
+                    </SelectItem>
+                    {profileList.map((p) => (
+                      <SelectItem
+                        key={p.id}
+                        value={p.id}
+                        data-testid={`option-reset-stats-${p.id}`}
+                      >
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             {showResetConfirm ? (
               <div className="flex items-center gap-3 p-3 rounded-md border border-destructive/50 bg-destructive/5">
                 <p className="text-sm flex-1">Are you sure? This cannot be undone.</p>
                 <Button
                   variant="destructive"
-                  onClick={() => resetStatsMutation.mutate()}
+                  onClick={() =>
+                    resetStatsMutation.mutate(
+                      resetStatsScope === "__all__" ? null : resetStatsScope,
+                    )
+                  }
                   disabled={resetStatsMutation.isPending}
                   data-testid="button-confirm-reset-stats"
                 >
@@ -676,7 +722,9 @@ export default function Dashboard() {
                 data-testid="button-reset-stats"
               >
                 <RotateCcw className="h-4 w-4 mr-2" />
-                Reset All Statistics
+                {resetStatsScope === "__all__"
+                  ? "Reset All Statistics"
+                  : `Reset ${profileList.find((p) => p.id === resetStatsScope)?.name ?? ""}'s Stats`}
               </Button>
             )}
           </CardContent>
@@ -891,7 +939,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <StatsPanel />
+        <StatsPanel profiles={profileList} />
       </main>
 
       <Dialog open={showAddVerbDialog} onOpenChange={(open) => {

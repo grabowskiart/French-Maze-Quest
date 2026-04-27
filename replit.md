@@ -72,22 +72,22 @@ This is an educational game that combines French language learning with maze exp
 - **categories**: Question categories (Greetings, Colors, etc.)
 - **questions**: French questions with type, difficulty, category, correct answer
 - **conjugation_packs**: Verb conjugation packs (être, avoir, etc.)
-- **question_states**: Spaced repetition state (streak, last seen)
+- **question_states**: Spaced repetition state (streak, last seen) — keyed by `(questionId, profileId)` so each child profile has its own per-question history. `profileId` is nullable for legacy/aggregated entries.
 - **game_settings**: Configurable game settings (maze size, visibility, etc.)
 
 ## API Endpoints
 
 ### Questions
-- `GET /api/questions/next` - Get the next question (uses spaced repetition)
-- `POST /api/questions/answer` - Submit an answer, returns result with feedback
+- `GET /api/questions/next/:profileId?` - Get the next question; spaced repetition uses the given profile's history (or aggregated when omitted)
+- `POST /api/questions/answer` - Submit an answer (`{ questionId, answer, profileId? }`), returns result with feedback and records state under that profile
 
 ### Settings & Configuration
 - `GET /api/settings` - Get current game settings
 - `PATCH /api/settings` - Update game settings
 
 ### Statistics
-- `GET /api/stats` - Aggregated answer statistics: overall summary, per-category correct/incorrect counts, and top 10 questions that need more practice
-- `POST /api/stats/reset` - Reset all question streaks, answer counts, and last-seen timestamps
+- `GET /api/stats/:profileId?` - Answer statistics filtered by profile (or aggregated when omitted): overall summary, per-category correct/incorrect counts, and top 10 questions that need more practice
+- `POST /api/stats/reset` - Reset question streaks/counts/last-seen; body `{ profileId? }` resets a single profile (or aggregated when omitted)
 
 ### Categories
 - `GET /api/categories` - List all categories with enabled status

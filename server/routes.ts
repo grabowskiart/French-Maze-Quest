@@ -1,19 +1,34 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { db } from "./db";
-import { answerSchema, updateGameSettingsSchema, questionStates } from "@shared/schema";
+import { answerSchema, profileIdSchema, resetStatsSchema, updateGameSettingsSchema } from "@shared/schema";
 import { z } from "zod";
 import { generateAndSaveQuestions, generateConjugationQuestions, generateConjugationPacks, generateConjugationPackForVerb } from "./questionGenerator";
+
+type ParsedProfileId =
+  | { ok: true; profileId: string | null }
+  | { ok: false };
+
+function parseProfileIdParam(raw: string | undefined): ParsedProfileId {
+  if (!raw) return { ok: true, profileId: null };
+  const result = profileIdSchema.safeParse(raw);
+  return result.success
+    ? { ok: true, profileId: result.data }
+    : { ok: false };
+}
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   
-  app.get("/api/questions/next", async (req, res) => {
+  app.get("/api/questions/next/:profileId?", async (req, res) => {
     try {
-      const question = await storage.getNextQuestion();
+      const parsed = parseProfileIdParam(req.params.profileId);
+      if (!parsed.ok) {
+        return res.status(400).json({ error: "Invalid profileId" });
+      }
+      const question = await storage.getNextQuestion(parsed.profileId);
       res.json(question);
     } catch (error) {
       console.error("Error fetching next question:", error);
@@ -29,8 +44,8 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid request body" });
       }
       
-      const { questionId, answer } = parsed.data;
-      const result = await storage.submitAnswer(questionId, answer);
+      const { questionId, answer, profileId } = parsed.data;
+      const result = await storage.submitAnswer(questionId, answer, profileId ?? null);
       
       res.json(result);
     } catch (error) {
@@ -179,9 +194,13 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/stats", async (_req, res) => {
+  app.get("/api/stats/:profileId?", async (req, res) => {
     try {
-      const stats = await storage.getStats();
+      const parsed = parseProfileIdParam(req.params.profileId);
+      if (!parsed.ok) {
+        return res.status(400).json({ error: "Invalid profileId" });
+      }
+      const stats = await storage.getStats(parsed.profileId ?? undefined);
       res.json(stats);
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -189,14 +208,13 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/stats/reset", async (_req, res) => {
+  app.post("/api/stats/reset", async (req, res) => {
     try {
-      await db.update(questionStates).set({
-        streak: 0,
-        timesAnswered: 0,
-        timesCorrect: 0,
-        lastSeen: null,
-      });
+      const parsed = resetStatsSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request body" });
+      }
+      await storage.resetStats(parsed.data.profileId);
       res.json({ success: true });
     } catch (error) {
       console.error("Error resetting stats:", error);

@@ -224,8 +224,12 @@ export default function Game() {
   const settingsRef = useRef({ visibilityRadius });
   settingsRef.current = { visibilityRadius };
 
+  const nextQuestionKey = activeProfileId
+    ? ["/api/questions/next", activeProfileId]
+    : ["/api/questions/next"];
+
   const { data: currentQuestion, refetch: refetchQuestion, isFetching: isLoadingQuestion } = useQuery<PublicQuestion>({
-    queryKey: ["/api/questions/next"],
+    queryKey: nextQuestionKey,
     enabled: gameState?.gamePhase === "combat" || isRevealQuestionMode,
     staleTime: 0,
     gcTime: 0,
@@ -233,7 +237,11 @@ export default function Game() {
 
   const submitAnswerMutation = useMutation({
     mutationFn: async ({ questionId, answer }: { questionId: string; answer: string }) => {
-      const res = await apiRequest("POST", "/api/questions/answer", { questionId, answer });
+      const res = await apiRequest("POST", "/api/questions/answer", {
+        questionId,
+        answer,
+        profileId: activeProfileIdRef.current ?? undefined,
+      });
       return res.json() as Promise<AnswerResult>;
     },
     onSuccess: (result) => {

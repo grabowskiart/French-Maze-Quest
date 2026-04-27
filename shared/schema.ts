@@ -74,12 +74,18 @@ export const questions = pgTable("questions", {
 export const questionStates = pgTable("question_states", {
   id: serial("id").primaryKey(),
   questionId: integer("question_id").references(() => questions.id).notNull(),
+  profileId: varchar("profile_id", { length: 64 }),
   streak: integer("streak").default(0).notNull(),
   timesAnswered: integer("times_answered").default(0).notNull(),
   timesCorrect: integer("times_correct").default(0).notNull(),
   lastSeen: timestamp("last_seen"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  uniqueQuestionProfile: uniqueIndex("question_states_question_profile_idx").on(
+    table.questionId,
+    table.profileId,
+  ),
+}));
 
 export const gameSettings = pgTable("game_settings", {
   id: serial("id").primaryKey(),
@@ -190,12 +196,24 @@ export interface GameState {
   lastAnswerCorrect: boolean | null;
 }
 
+export const profileIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(/^[A-Za-z0-9_-]+$/, "Invalid profile id");
+
 export const answerSchema = z.object({
   questionId: z.string(),
   answer: z.string(),
+  profileId: profileIdSchema.optional(),
 });
 
 export type AnswerSubmission = z.infer<typeof answerSchema>;
+
+export const resetStatsSchema = z.object({
+  profileId: profileIdSchema.optional(),
+});
 
 export interface AnswerResult {
   correct: boolean;

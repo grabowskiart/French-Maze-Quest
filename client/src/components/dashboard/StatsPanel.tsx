@@ -1,9 +1,13 @@
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from "recharts";
-import { BarChart3, Target, CheckCircle2, XCircle, TrendingUp, AlertCircle } from "lucide-react";
+import { BarChart3, Target, CheckCircle2, XCircle, TrendingUp, AlertCircle, Users } from "lucide-react";
 import type { StatsResponse } from "@shared/schema";
+import { loadProfiles, type ChildProfile } from "@/lib/saveGame";
 
 const TYPE_LABELS: Record<string, string> = {
   mcq: "MCQ",
@@ -12,14 +16,101 @@ const TYPE_LABELS: Record<string, string> = {
   grammar: "Grammar",
 };
 
+const ALL_VALUE = "__all__";
+
 function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-export function StatsPanel() {
+interface StatsPanelProps {
+  profiles?: ChildProfile[];
+}
+
+export function StatsPanel({ profiles: profilesProp }: StatsPanelProps = {}) {
+  const [profiles, setProfiles] = useState<ChildProfile[]>(
+    () => profilesProp ?? loadProfiles(),
+  );
+  const [selectedProfileId, setSelectedProfileId] = useState<string>(ALL_VALUE);
+
+  useEffect(() => {
+    if (profilesProp) {
+      setProfiles(profilesProp);
+    }
+  }, [profilesProp]);
+
+  useEffect(() => {
+    if (profilesProp) return;
+    const refresh = () => setProfiles(loadProfiles());
+    const handleStorage = (e: StorageEvent) => {
+      if (!e.key || e.key.startsWith("french-maze:")) refresh();
+    };
+    window.addEventListener("focus", refresh);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [profilesProp]);
+
+  useEffect(() => {
+    if (
+      selectedProfileId !== ALL_VALUE &&
+      !profiles.some((p) => p.id === selectedProfileId)
+    ) {
+      setSelectedProfileId(ALL_VALUE);
+    }
+  }, [profiles, selectedProfileId]);
+
+  const queryKey = useMemo<readonly unknown[]>(
+    () =>
+      selectedProfileId === ALL_VALUE
+        ? ["/api/stats"]
+        : ["/api/stats", selectedProfileId],
+    [selectedProfileId],
+  );
+
   const { data: stats, isLoading, isError } = useQuery<StatsResponse>({
-    queryKey: ["/api/stats"],
+    queryKey,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
+
+  const activeProfileLabel =
+    selectedProfileId === ALL_VALUE
+      ? "All children (combined)"
+      : profiles.find((p) => p.id === selectedProfileId)?.name ?? "Selected profile";
+
+  const profileSelector = profiles.length > 0 ? (
+    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3 mt-3">
+      <Label htmlFor="stats-profile-select" className="text-xs text-muted-foreground flex items-center gap-1">
+        <Users className="h-3.5 w-3.5" />
+        Showing stats for
+      </Label>
+      <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+        <SelectTrigger
+          id="stats-profile-select"
+          className="h-8 w-full sm:w-56"
+          data-testid="select-stats-profile"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL_VALUE} data-testid="option-stats-profile-all">
+            All children (combined)
+          </SelectItem>
+          {profiles.map((p) => (
+            <SelectItem
+              key={p.id}
+              value={p.id}
+              data-testid={`option-stats-profile-${p.id}`}
+            >
+              {p.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  ) : null;
 
   if (isLoading) {
     return (
@@ -30,6 +121,7 @@ export function StatsPanel() {
             Answer Statistics
           </CardTitle>
           <CardDescription>Loading statistics…</CardDescription>
+          {profileSelector}
         </CardHeader>
         <CardContent>
           <div className="h-32 rounded-md bg-muted animate-pulse" />
@@ -47,6 +139,7 @@ export function StatsPanel() {
             Answer Statistics
           </CardTitle>
           <CardDescription>Couldn't load statistics. Please refresh the page to try again.</CardDescription>
+          {profileSelector}
         </CardHeader>
       </Card>
     );
@@ -73,8 +166,9 @@ export function StatsPanel() {
           Answer Statistics
         </CardTitle>
         <CardDescription>
-          See how the player is progressing. Questions that have been answered correctly are de-prioritized by the spaced repetition system, so they appear less often.
+          See how <span data-testid="text-stats-active-profile">{activeProfileLabel}</span> is progressing. Questions that have been answered correctly are de-prioritized by the spaced repetition system, so they appear less often.
         </CardDescription>
+        {profileSelector}
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

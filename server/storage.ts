@@ -4,6 +4,10 @@ import { db } from "./db";
 import { eq, and, inArray, sql, desc, asc, or, isNull } from "drizzle-orm";
 import { questionBank, checkAnswer } from "./questionBank";
 
+function profileMatches(column: typeof questionStates.profileId, profileId: string | null) {
+  return profileId === null ? isNull(column) : eq(column, profileId);
+}
+
 function removeAccents(str: string): string {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
@@ -14,8 +18,8 @@ interface QuestionStateMap {
 }
 
 export interface IStorage {
-  getNextQuestion(): Promise<PublicQuestion>;
-  submitAnswer(questionId: string, answer: string): Promise<{
+  getNextQuestion(profileId?: string | null): Promise<PublicQuestion>;
+  submitAnswer(questionId: string, answer: string, profileId?: string | null): Promise<{
     correct: boolean;
     correctAnswer: string;
     explanation: string;
@@ -27,7 +31,8 @@ export interface IStorage {
   updateSettings(settings: Partial<GameSettings>): Promise<GameSettings>;
   toggleCategory(categoryId: number, isActive: boolean): Promise<void>;
   toggleConjugationPack(packId: number, isActive: boolean): Promise<void>;
-  getStats(): Promise<StatsResponse>;
+  getStats(profileId?: string): Promise<StatsResponse>;
+  resetStats(profileId?: string): Promise<void>;
 }
 
 function dbQuestionToQuestion(dbQ: DbQuestion, state?: DbQuestionState | null, categoryName?: string): Question {
@@ -63,7 +68,7 @@ function toPublicQuestion(question: Question): PublicQuestion {
 }
 
 export class DatabaseStorage implements IStorage {
-  async getNextQuestion(): Promise<PublicQuestion> {
+  async getNextQuestion(profileId: string | null = null): Promise<PublicQuestion> {
     const settings = await this.getSettings();
     const now = new Date();
     
@@ -79,7 +84,13 @@ export class DatabaseStorage implements IStorage {
 
     const dbQuestions = await db.select()
       .from(questions)
-      .leftJoin(questionStates, eq(questions.id, questionStates.questionId))
+      .leftJoin(
+        questionStates,
+        and(
+          eq(questions.id, questionStates.questionId),
+          profileMatches(questionStates.profileId, profileId),
+        ),
+      )
       .leftJoin(categories, eq(questions.categoryId, categories.id))
       .where(
         and(
@@ -174,7 +185,7 @@ export class DatabaseStorage implements IStorage {
     return toPublicQuestion(scoredQuestions[0].question);
   }
 
-  async submitAnswer(questionId: string, answer: string): Promise<{
+  async submitAnswer(questionId: string, answer: string, profileId: string | null = null): Promise<{
     correct: boolean;
     correctAnswer: string;
     explanation: string;
@@ -201,7 +212,16 @@ export class DatabaseStorage implements IStorage {
     const normalizedCorrect = removeAccents(dbQuestion.correctAnswer.toLowerCase().trim());
     const isCorrect = normalizedAnswer === normalizedCorrect;
 
-    const [existingState] = await db.select().from(questionStates).where(eq(questionStates.questionId, qId)).limit(1);
+    const [existingState] = await db
+      .select()
+      .from(questionStates)
+      .where(
+        and(
+          eq(questionStates.questionId, qId),
+          profileMatches(questionStates.profileId, profileId),
+        ),
+      )
+      .limit(1);
     
     if (existingState) {
       await db.update(questionStates)
@@ -215,6 +235,7 @@ export class DatabaseStorage implements IStorage {
     } else {
       await db.insert(questionStates).values({
         questionId: qId,
+        profileId,
         streak: isCorrect ? 1 : 0,
         timesAnswered: 1,
         timesCorrect: isCorrect ? 1 : 0,
@@ -279,25 +300,63 @@ export class DatabaseStorage implements IStorage {
       .where(eq(conjugationPacks.id, packId));
   }
 
-  async getStats(): Promise<StatsResponse> {
+  async getStats(profileId?: string): Promise<StatsResponse> {
     const allCategories = await db.select().from(categories);
     const categoryNameById = new Map<number, string>();
     for (const c of allCategories) categoryNameById.set(c.id, c.displayName);
 
-    const rows = await db
+    const activeQuestions = await db
       .select({
         questionId: questions.id,
         questionText: questions.question,
         type: questions.type,
         categoryId: questions.categoryId,
-        isActive: questions.isActive,
+      })
+      .from(questions)
+      .where(eq(questions.isActive, true));
+
+    const stateRowsQuery = db
+      .select({
+        questionId: questionStates.questionId,
         timesAnswered: questionStates.timesAnswered,
         timesCorrect: questionStates.timesCorrect,
         streak: questionStates.streak,
       })
-      .from(questions)
-      .leftJoin(questionStates, eq(questionStates.questionId, questions.id))
-      .where(eq(questions.isActive, true));
+      .from(questionStates);
+
+    const stateRows = await (profileId
+      ? stateRowsQuery.where(eq(questionStates.profileId, profileId))
+      : stateRowsQuery);
+
+    type StateAgg = { timesAnswered: number; timesCorrect: number; streak: number };
+    const stateByQuestionId = new Map<number, StateAgg>();
+    for (const s of stateRows) {
+      const existing = stateByQuestionId.get(s.questionId);
+      if (existing) {
+        existing.timesAnswered += s.timesAnswered;
+        existing.timesCorrect += s.timesCorrect;
+        existing.streak = Math.max(existing.streak, s.streak);
+      } else {
+        stateByQuestionId.set(s.questionId, {
+          timesAnswered: s.timesAnswered,
+          timesCorrect: s.timesCorrect,
+          streak: s.streak,
+        });
+      }
+    }
+
+    const rows = activeQuestions.map((q) => {
+      const agg = stateByQuestionId.get(q.questionId);
+      return {
+        questionId: q.questionId,
+        questionText: q.questionText,
+        type: q.type,
+        categoryId: q.categoryId,
+        timesAnswered: agg?.timesAnswered ?? 0,
+        timesCorrect: agg?.timesCorrect ?? 0,
+        streak: agg?.streak ?? 0,
+      };
+    });
 
     let totalQuestions = 0;
     let attemptedQuestions = 0;
@@ -397,6 +456,22 @@ export class DatabaseStorage implements IStorage {
       needsPractice,
     };
   }
+
+  async resetStats(profileId?: string): Promise<void> {
+    const update = db
+      .update(questionStates)
+      .set({
+        streak: 0,
+        timesAnswered: 0,
+        timesCorrect: 0,
+        lastSeen: null,
+      });
+    if (profileId) {
+      await update.where(eq(questionStates.profileId, profileId));
+    } else {
+      await update;
+    }
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -410,7 +485,7 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async getNextQuestion(): Promise<PublicQuestion> {
+  async getNextQuestion(_profileId: string | null = null): Promise<PublicQuestion> {
     const now = Date.now();
     
     const scoredQuestions = questionBank.map((q) => {
@@ -437,7 +512,7 @@ export class MemStorage implements IStorage {
     return toPublicQuestion(scoredQuestions[0].question);
   }
 
-  async submitAnswer(questionId: string, answer: string): Promise<{
+  async submitAnswer(questionId: string, answer: string, _profileId: string | null = null): Promise<{
     correct: boolean;
     correctAnswer: string;
     explanation: string;
@@ -500,7 +575,12 @@ export class MemStorage implements IStorage {
 
   async toggleCategory(): Promise<void> {}
   async toggleConjugationPack(): Promise<void> {}
-  async getStats(): Promise<StatsResponse> {
+  async resetStats(_profileId: string | null = null): Promise<void> {
+    for (const id of Array.from(this.questionStates.keys())) {
+      this.questionStates.set(id, { streak: 0, lastSeen: null });
+    }
+  }
+  async getStats(_profileId: string | null = null): Promise<StatsResponse> {
     return {
       summary: {
         totalQuestions: 0,
