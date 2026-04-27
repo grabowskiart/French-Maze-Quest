@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import type { GameSettings, Category, ConjugationPack, QuestionType, ProficiencyLevel, Tense } from "@shared/schema";
 import { StatsPanel } from "@/components/dashboard/StatsPanel";
+import { clearSavedRun, hasSavedRun } from "@/lib/saveGame";
 
 const iconMap: Record<string, React.ReactNode> = {
   "hand-wave": <MessageCircle className="h-4 w-4" />,
@@ -58,6 +59,8 @@ export default function Dashboard() {
   const [, navigate] = useLocation();
   const [generatingLevel, setGeneratingLevel] = useState<ProficiencyLevel | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showResetSaveConfirm, setShowResetSaveConfirm] = useState(false);
+  const [hasSave, setHasSave] = useState<boolean>(() => hasSavedRun());
   const [showAddVerbDialog, setShowAddVerbDialog] = useState(false);
   const [newVerbInput, setNewVerbInput] = useState("");
 
@@ -190,6 +193,16 @@ export default function Dashboard() {
       toast({ title: "Error", description: "Failed to reset statistics.", variant: "destructive" });
     },
   });
+
+  const handleResetSavedRun = () => {
+    clearSavedRun();
+    setHasSave(hasSavedRun());
+    setShowResetSaveConfirm(false);
+    toast({
+      title: "Saved adventure cleared",
+      description: "The next visit to the game will start a fresh run.",
+    });
+  };
 
   const questionTypes: { value: QuestionType; label: string; description: string }[] = [
     { value: "mcq", label: "Multiple Choice", description: "Choose from 4 options" },
@@ -551,6 +564,56 @@ export default function Dashboard() {
                 <RotateCcw className="h-4 w-4 mr-2" />
                 Reset All Statistics
               </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5 text-destructive" />
+              Reset Saved Adventure
+            </CardTitle>
+            <CardDescription>
+              Clear the in-progress dungeon run saved in this browser. Use this to start a child fresh — for a new sibling, or after they get stuck. The next visit to the game will only show "Enter the Dungeon".
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {showResetSaveConfirm ? (
+              <div className="flex items-center gap-3 p-3 rounded-md border border-destructive/50 bg-destructive/5">
+                <p className="text-sm flex-1">Are you sure? The current adventure progress will be lost.</p>
+                <Button
+                  variant="destructive"
+                  onClick={handleResetSavedRun}
+                  data-testid="button-confirm-reset-saved-run"
+                >
+                  Yes, Clear Save
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowResetSaveConfirm(false)}
+                  data-testid="button-cancel-reset-saved-run"
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowResetSaveConfirm(true)}
+                  disabled={!hasSave}
+                  data-testid="button-reset-saved-run"
+                >
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Reset Saved Adventure
+                </Button>
+                {!hasSave && (
+                  <p className="text-sm text-muted-foreground" data-testid="text-no-saved-run">
+                    No saved adventure to clear.
+                  </p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
