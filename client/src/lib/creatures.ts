@@ -51,3 +51,22 @@ export function scaleCreatureMaxHp(
   const multiplier = 1 + progress;
   return Math.max(template.maxHp, Math.ceil(template.maxHp * multiplier));
 }
+
+export type DifficultyTier = "tough" | "elite" | "champion";
+
+export interface DifficultyBadge {
+  tier: DifficultyTier;
+  label: string;
+  stars: number;
+}
+
+export function getCreatureDifficultyBadge(encounter: ActiveEncounter): DifficultyBadge | null {
+  if (encounter.isBoss) return null;
+  const base = CREATURE_ROSTER.find((c) => c.id === encounter.id);
+  if (!base || base.maxHp <= 0) return null;
+  const ratio = encounter.maxHp / base.maxHp;
+  if (ratio >= 1.9) return { tier: "champion", label: "Champion!", stars: 3 };
+  if (ratio >= 1.6) return { tier: "elite", label: "Elite!", stars: 2 };
+  if (ratio >= 1.3) return { tier: "tough", label: "Tough!", stars: 1 };
+  return null;
+}

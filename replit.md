@@ -130,6 +130,7 @@ Access the parent dashboard via the settings icon in the game header. Features:
 - Encouraging, supportive feedback messages
 - Game progress is autosaved to browser localStorage so kids can resume after closing the tab; the start screen offers "Continue Adventure" when a saved run exists. The save is cleared on win.
 - Non-boss creature HP scales with the player's distance toward the exit (1× at the entrance up to ~2× near the exit). The Dragon Warden boss is unaffected.
+- Scaled creatures display a small kid-friendly difficulty badge ("Tough!", "Elite!", "Champion!" with star icons) in both the encounter status panel and the combat card when their HP is noticeably above base (≥1.3×, ≥1.6×, ≥1.9× respectively). Logic lives in `client/src/lib/creatures.ts` (`getCreatureDifficultyBadge`).
 
 ## Technical Notes
 

@@ -11,7 +11,9 @@ import { generateMaze, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
-import { BOSS_CREATURE, CREATURE_ROSTER, scaleCreatureMaxHp, type ActiveEncounter } from "@/lib/creatures";
+import { BOSS_CREATURE, CREATURE_ROSTER, scaleCreatureMaxHp, getCreatureDifficultyBadge, type ActiveEncounter, type DifficultyBadge } from "@/lib/creatures";
+import { Badge } from "@/components/ui/badge";
+import { Star } from "lucide-react";
 import { playMoveSound, playEncounterSound, playPickupSound, playHitSound, playLoseLifeSound } from "@/lib/sounds";
 import { PickupIcon } from "@/components/game/PickupIcon";
 import { clearSavedRun, loadSavedRun, persistSavedRun, type SavedRun } from "@/lib/saveGame";
@@ -112,6 +114,27 @@ function revealArea(maze: Maze, center: Position, radius: number): Maze {
 }
 
 const DEFAULT_WEAPON: Weapon = { name: "Bare Hands", damage: 1, description: "Just your fists. Better than nothing." };
+
+function DifficultyBadgeView({ badge, testId }: { badge: DifficultyBadge; testId: string }) {
+  const palette: Record<DifficultyBadge["tier"], string> = {
+    tough: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/40 dark:text-amber-100 dark:border-amber-700",
+    elite: "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-900/40 dark:text-orange-100 dark:border-orange-700",
+    champion: "bg-red-100 text-red-900 border-red-300 dark:bg-red-900/40 dark:text-red-100 dark:border-red-700",
+  };
+  return (
+    <Badge
+      variant="outline"
+      className={`gap-1 ${palette[badge.tier]}`}
+      data-testid={testId}
+      title={`This creature has been scaled to roughly ${badge.stars === 1 ? "1.3×" : badge.stars === 2 ? "1.6×" : "1.9×"} its base toughness`}
+    >
+      {Array.from({ length: badge.stars }).map((_, i) => (
+        <Star key={i} className="h-3 w-3 fill-current" aria-hidden="true" />
+      ))}
+      <span>{badge.label}</span>
+    </Badge>
+  );
+}
 
 export default function Game() {
   const [savedRun, setSavedRun] = useState<SavedRun | null>(() => loadSavedRun());
@@ -691,13 +714,21 @@ export default function Game() {
           {gameState.gamePhase === "exploring" && (
             <p className="text-muted-foreground">Next encounter in {Math.max(0, nextEncounterAt - stepsSinceEncounter)} step(s).</p>
           )}
-          {encounter && (
-            <div className="space-y-1">
-              <p className="font-medium">{encounter.name}</p>
-              <Progress value={(encounter.hp / encounter.maxHp) * 100} className="h-3" />
-              <p className="text-xs text-muted-foreground">{encounter.hp}/{encounter.maxHp} HP</p>
-            </div>
-          )}
+          {encounter && (() => {
+            const statusBadge = getCreatureDifficultyBadge(encounter);
+            return (
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium">{encounter.name}</p>
+                  {statusBadge && (
+                    <DifficultyBadgeView badge={statusBadge} testId={`badge-difficulty-status-${statusBadge.tier}`} />
+                  )}
+                </div>
+                <Progress value={(encounter.hp / encounter.maxHp) * 100} className="h-3" />
+                <p className="text-xs text-muted-foreground">{encounter.hp}/{encounter.maxHp} HP</p>
+              </div>
+            );
+          })()}
           {weaponInventory.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
               <span>Inventory:</span>
@@ -784,7 +815,15 @@ export default function Game() {
             {gameState.gamePhase === "combat" && encounter && (
               <div className="space-y-4">
                 <div className="rounded-lg border bg-card p-4">
-                  <h2 className="font-display text-2xl font-bold">⚔️ {encounter.name}</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-display text-2xl font-bold">⚔️ {encounter.name}</h2>
+                    {(() => {
+                      const cardBadge = getCreatureDifficultyBadge(encounter);
+                      return cardBadge ? (
+                        <DifficultyBadgeView badge={cardBadge} testId={`badge-difficulty-card-${cardBadge.tier}`} />
+                      ) : null;
+                    })()}
+                  </div>
                   <p className="text-muted-foreground">Defeat it by answering French questions correctly.</p>
                   <div className="mt-3 overflow-hidden rounded-lg border border-border bg-black/50">
                     <img
