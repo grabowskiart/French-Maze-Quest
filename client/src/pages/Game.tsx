@@ -79,10 +79,25 @@ function buildPickups(maze: Maze): Record<string, Pickup> {
     excluded.add(posKey(pos));
   }
 
-  const weaponTiles = pickPathPositions(maze, 7, excluded);
-  for (let i = 0; i < weaponTiles.length; i++) {
-    const pos = weaponTiles[i];
-    pickups[posKey(pos)] = { kind: "weapon", weapon: WEAPON_POOL[i % WEAPON_POOL.length] };
+  const weaponTiles = pickPathPositions(maze, WEAPON_POOL.length, excluded);
+  const distFromEntrance = (pos: Position) =>
+    Math.abs(pos.x - maze.entrance.x) + Math.abs(pos.y - maze.entrance.y);
+  const distFromExit = (pos: Position) =>
+    Math.abs(pos.x - maze.exit.x) + Math.abs(pos.y - maze.exit.y);
+  const sortedWeaponTiles = [...weaponTiles].sort((a, b) => {
+    const da = distFromEntrance(a);
+    const db = distFromEntrance(b);
+    if (da !== db) return da - db;
+    const ea = distFromExit(a);
+    const eb = distFromExit(b);
+    if (ea !== eb) return eb - ea;
+    if (a.y !== b.y) return a.y - b.y;
+    return a.x - b.x;
+  });
+  const sortedWeapons = [...WEAPON_POOL].sort((a, b) => a.damage - b.damage);
+  for (let i = 0; i < sortedWeaponTiles.length; i++) {
+    const pos = sortedWeaponTiles[i];
+    pickups[posKey(pos)] = { kind: "weapon", weapon: sortedWeapons[i] };
     excluded.add(posKey(pos));
   }
 
