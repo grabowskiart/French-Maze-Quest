@@ -1,11 +1,23 @@
-import { Swords, Shield, Gem, Flame } from "lucide-react";
+import { Swords, Shield, Gem, Flame, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface StartScreenProps {
   onStart: () => void;
+  hasSave?: boolean;
+  onContinue?: () => void;
 }
 
-export function StartScreen({ onStart }: StartScreenProps) {
+export function StartScreen({ onStart, hasSave = false, onContinue }: StartScreenProps) {
+  const handleNewAdventureClick = () => {
+    if (hasSave) {
+      const confirmed = window.confirm(
+        "You have a saved adventure in progress. Starting a new one will erase it. Continue?",
+      );
+      if (!confirmed) return;
+    }
+    onStart();
+  };
+
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
       <div
@@ -65,15 +77,34 @@ export function StartScreen({ onStart }: StartScreenProps) {
           </div>
         </div>
 
-        <Button
-          onClick={onStart}
-          size="lg"
-          className="w-full h-14 text-xl font-bold font-display mt-4 bg-orange-700 border border-orange-500 text-white"
-          data-testid="button-start-game"
-        >
-          <Swords className="w-6 h-6 mr-2" />
-          Enter the Dungeon
-        </Button>
+        <div className="w-full space-y-3 pt-2">
+          {hasSave && onContinue && (
+            <Button
+              onClick={onContinue}
+              size="lg"
+              className="w-full h-14 text-xl font-bold font-display bg-emerald-700 border border-emerald-500 text-white hover:bg-emerald-600"
+              data-testid="button-continue-game"
+            >
+              <Save className="w-6 h-6 mr-2" />
+              Continue Adventure
+            </Button>
+          )}
+
+          <Button
+            onClick={handleNewAdventureClick}
+            size="lg"
+            variant={hasSave ? "outline" : "default"}
+            className={
+              hasSave
+                ? "w-full h-14 text-xl font-bold font-display bg-black/40 border border-orange-500/60 text-orange-100 hover:bg-orange-900/40"
+                : "w-full h-14 text-xl font-bold font-display bg-orange-700 border border-orange-500 text-white"
+            }
+            data-testid="button-start-game"
+          >
+            <Swords className="w-6 h-6 mr-2" />
+            {hasSave ? "New Adventure" : "Enter the Dungeon"}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -11,9 +11,10 @@ import { generateMaze, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
-import { BOSS_CREATURE, CREATURE_ROSTER, type ActiveEncounter } from "@/lib/creatures";
+import { BOSS_CREATURE, CREATURE_ROSTER, scaleCreatureMaxHp, type ActiveEncounter } from "@/lib/creatures";
 import { playMoveSound, playEncounterSound, playPickupSound, playHitSound, playLoseLifeSound } from "@/lib/sounds";
 import { PickupIcon } from "@/components/game/PickupIcon";
+import { clearSavedRun, loadSavedRun, persistSavedRun, type SavedRun } from "@/lib/saveGame";
 
 const DEFAULT_MAZE_SIZE = 30;
 const DEFAULT_VISIBILITY_RADIUS = 1;
@@ -110,7 +111,10 @@ function revealArea(maze: Maze, center: Position, radius: number): Maze {
   };
 }
 
+const DEFAULT_WEAPON: Weapon = { name: "Bare Hands", damage: 1, description: "Just your fists. Better than nothing." };
+
 export default function Game() {
+  const [savedRun, setSavedRun] = useState<SavedRun | null>(() => loadSavedRun());
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [sessionTime, setSessionTime] = useState(0);
   const [feedbackResult, setFeedbackResult] = useState<AnswerResult | null>(null);
@@ -130,7 +134,7 @@ export default function Game() {
   const [pickups, setPickups] = useState<Record<string, Pickup>>({});
   const [potions, setPotions] = useState(0);
   const [weaponInventory, setWeaponInventory] = useState<Array<Weapon>>([]);
-  const [equippedWeapon, setEquippedWeapon] = useState<Weapon>({ name: "Bare Hands", damage: 1, description: "Just your fists. Better than nothing." });
+  const [equippedWeapon, setEquippedWeapon] = useState<Weapon>(DEFAULT_WEAPON);
   const [weaponChoice, setWeaponChoice] = useState<{ key: string; weapon: Weapon } | null>(null);
   const [isRevealQuestionMode, setIsRevealQuestionMode] = useState(false);
 
@@ -308,12 +312,120 @@ export default function Game() {
     setPickups(buildPickups(maze));
     setPotions(0);
     setWeaponInventory([]);
-    setEquippedWeapon({ name: "Bare Hands", damage: 1, description: "Just your fists. Better than nothing." });
+    setEquippedWeapon(DEFAULT_WEAPON);
     setWeaponChoice(null);
     setIsRevealQuestionMode(false);
 
+    clearSavedRun();
+    setSavedRun(null);
+
     queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
   }, [mazeWidth, mazeHeight]);
+
+  const continueGame = useCallback(() => {
+    const saved = loadSavedRun();
+    if (!saved) return;
+
+    const restoredSessionStart = Date.now() - Math.max(0, saved.elapsedMs);
+    const restoredGameState: GameState = {
+      ...saved.gameState,
+      sessionStartTime: restoredSessionStart,
+    };
+
+    setGameState(restoredGameState);
+    setHearts(saved.hearts);
+    setPathHistory(saved.pathHistory.length ? saved.pathHistory : [restoredGameState.playerPosition]);
+    setStepsSinceEncounter(saved.stepsSinceEncounter);
+    setNextEncounterAt(saved.nextEncounterAt);
+    setEncounter(saved.encounter);
+    setPickups(saved.pickups as Record<string, Pickup>);
+    setPotions(saved.potions);
+    setWeaponInventory(saved.weaponInventory);
+    setEquippedWeapon(saved.equippedWeapon);
+    setWeaponChoice(saved.weaponChoice);
+    setBossDefeated(saved.bossDefeated);
+    setMaxStreak(saved.maxStreak);
+    setCombatMessage(saved.combatMessage);
+    setIsRevealQuestionMode(saved.isRevealQuestionMode);
+    setSessionTime(Math.max(0, saved.elapsedMs));
+    setFeedbackResult(null);
+    setShowDeathModal(false);
+    setPickupModal(null);
+    setDefeatedCreatureModal(null);
+
+    queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
+  }, []);
+
+  const buildSnapshotRef = useRef<(() => SavedRun | null) | null>(null);
+  buildSnapshotRef.current = () => {
+    if (!gameState) return null;
+    if (gameState.gamePhase === "start" || gameState.gamePhase === "won") return null;
+    const elapsedMs = Date.now() - gameState.sessionStartTime;
+    return {
+      version: 1,
+      savedAt: Date.now(),
+      elapsedMs,
+      gameState,
+      hearts,
+      pathHistory,
+      stepsSinceEncounter,
+      nextEncounterAt,
+      encounter,
+      pickups,
+      potions,
+      weaponInventory,
+      equippedWeapon,
+      weaponChoice,
+      bossDefeated,
+      maxStreak,
+      combatMessage,
+      isRevealQuestionMode,
+    };
+  };
+
+  useEffect(() => {
+    const snapshot = buildSnapshotRef.current?.();
+    if (snapshot) persistSavedRun(snapshot);
+  }, [
+    gameState,
+    sessionTime,
+    hearts,
+    pathHistory,
+    stepsSinceEncounter,
+    nextEncounterAt,
+    encounter,
+    pickups,
+    potions,
+    weaponInventory,
+    equippedWeapon,
+    weaponChoice,
+    bossDefeated,
+    maxStreak,
+    combatMessage,
+    isRevealQuestionMode,
+  ]);
+
+  useEffect(() => {
+    const flush = () => {
+      const snapshot = buildSnapshotRef.current?.();
+      if (snapshot) persistSavedRun(snapshot);
+    };
+    window.addEventListener("beforeunload", flush);
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", flush);
+    return () => {
+      window.removeEventListener("beforeunload", flush);
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", flush);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (gameState?.gamePhase === "won") {
+      clearSavedRun();
+      setSavedRun(null);
+    }
+  }, [gameState?.gamePhase]);
 
   const handleAnswerSubmit = (answer: string) => {
     if (currentQuestion && (gameState?.gamePhase === "combat" || isRevealQuestionMode)) {
@@ -451,7 +563,8 @@ export default function Game() {
 
     if (movedSteps >= nextEncounterAt) {
       const next = CREATURE_ROSTER[Math.floor(Math.random() * CREATURE_ROSTER.length)];
-      setEncounter({ ...next, hp: next.maxHp, isBoss: false });
+      const scaledMaxHp = scaleCreatureMaxHp(next, newPosition, gameState.maze.entrance, gameState.maze.exit);
+      setEncounter({ ...next, maxHp: scaledMaxHp, hp: scaledMaxHp, isBoss: false });
       setCombatMessage(`A ${next.name} appears! Answer French questions to defeat it.`);
       setGameState({
         ...gameState,
@@ -537,7 +650,13 @@ export default function Game() {
   }, [gameState, isRevealQuestionActive, isFeedbackModalOpen, isRevealQuestionMode, isDeathModalOpen, isPickupModalOpen, isDefeatedCreatureModalOpen, stepsSinceEncounter, nextEncounterAt, pathHistory, pickups]);
 
   if (!gameState || gameState.gamePhase === "start") {
-    return <StartScreen onStart={startGame} />;
+    return (
+      <StartScreen
+        onStart={startGame}
+        hasSave={Boolean(savedRun)}
+        onContinue={savedRun ? continueGame : undefined}
+      />
+    );
   }
 
   return (

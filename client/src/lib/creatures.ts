@@ -35,3 +35,19 @@ export const BOSS_CREATURE: CreatureTemplate = {
   image: "/images/creatures/dragon-warden-alive.png",
   defeatedImage: "/images/creatures/dragon-warden-defeated.png",
 };
+
+type Pos = { x: number; y: number };
+
+export function scaleCreatureMaxHp(
+  template: CreatureTemplate,
+  playerPos: Pos,
+  entrance: Pos,
+  exit: Pos,
+): number {
+  const totalDistance = Math.abs(entrance.x - exit.x) + Math.abs(entrance.y - exit.y);
+  if (totalDistance <= 0) return template.maxHp;
+  const remaining = Math.abs(playerPos.x - exit.x) + Math.abs(playerPos.y - exit.y);
+  const progress = Math.max(0, Math.min(1, 1 - remaining / totalDistance));
+  const multiplier = 1 + progress;
+  return Math.max(template.maxHp, Math.ceil(template.maxHp * multiplier));
+}

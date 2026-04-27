@@ -128,7 +128,8 @@ Access the parent dashboard via the settings icon in the game header. Features:
 - Short sessions (5-10 minutes)
 - Clear visual feedback for all actions
 - Encouraging, supportive feedback messages
-- Game state is ephemeral - navigating away resets the game
+- Game progress is autosaved to browser localStorage so kids can resume after closing the tab; the start screen offers "Continue Adventure" when a saved run exists. The save is cleared on win.
+- Non-boss creature HP scales with the player's distance toward the exit (1× at the entrance up to ~2× near the exit). The Dragon Warden boss is unaffected.
 
 ## Technical Notes
 
