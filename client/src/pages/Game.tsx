@@ -16,7 +16,17 @@ import { Badge } from "@/components/ui/badge";
 import { Star } from "lucide-react";
 import { playMoveSound, playEncounterSound, playPickupSound, playHitSound, playLoseLifeSound } from "@/lib/sounds";
 import { PickupIcon } from "@/components/game/PickupIcon";
-import { clearSavedRun, loadSavedRun, persistSavedRun, type SavedRun } from "@/lib/saveGame";
+import {
+  clearSavedRun,
+  getActiveProfileId,
+  hasSavedRun,
+  loadProfiles,
+  loadSavedRun,
+  persistSavedRun,
+  setActiveProfileId,
+  type ChildProfile,
+  type SavedRun,
+} from "@/lib/saveGame";
 
 const DEFAULT_MAZE_SIZE = 30;
 const DEFAULT_VISIBILITY_RADIUS = 1;
@@ -152,7 +162,20 @@ function DifficultyBadgeView({ badge, testId }: { badge: DifficultyBadge; testId
 }
 
 export default function Game() {
-  const [savedRun, setSavedRun] = useState<SavedRun | null>(() => loadSavedRun());
+  const [profiles, setProfiles] = useState<ChildProfile[]>(() => loadProfiles());
+  const [activeProfileId, setActiveProfileIdState] = useState<string | null>(() => {
+    const initial = getActiveProfileId();
+    if (initial) return initial;
+    const list = loadProfiles();
+    if (list.length === 1) {
+      setActiveProfileId(list[0].id);
+      return list[0].id;
+    }
+    return null;
+  });
+  const [savedRun, setSavedRun] = useState<SavedRun | null>(() => loadSavedRun(getActiveProfileId()));
+  const activeProfileIdRef = useRef(activeProfileId);
+  activeProfileIdRef.current = activeProfileId;
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [sessionTime, setSessionTime] = useState(0);
   const [feedbackResult, setFeedbackResult] = useState<AnswerResult | null>(null);
@@ -354,14 +377,14 @@ export default function Game() {
     setWeaponChoice(null);
     setIsRevealQuestionMode(false);
 
-    clearSavedRun();
+    clearSavedRun(activeProfileIdRef.current);
     setSavedRun(null);
 
     queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
   }, [mazeWidth, mazeHeight]);
 
   const continueGame = useCallback(() => {
-    const saved = loadSavedRun();
+    const saved = loadSavedRun(activeProfileIdRef.current);
     if (!saved) return;
 
     const restoredSessionStart = Date.now() - Math.max(0, saved.elapsedMs);
@@ -423,7 +446,7 @@ export default function Game() {
 
   useEffect(() => {
     const snapshot = buildSnapshotRef.current?.();
-    if (snapshot) persistSavedRun(snapshot);
+    if (snapshot) persistSavedRun(activeProfileIdRef.current, snapshot);
   }, [
     gameState,
     sessionTime,
@@ -446,7 +469,7 @@ export default function Game() {
   useEffect(() => {
     const flush = () => {
       const snapshot = buildSnapshotRef.current?.();
-      if (snapshot) persistSavedRun(snapshot);
+      if (snapshot) persistSavedRun(activeProfileIdRef.current, snapshot);
     };
     window.addEventListener("beforeunload", flush);
     window.addEventListener("pagehide", flush);
@@ -460,10 +483,61 @@ export default function Game() {
 
   useEffect(() => {
     if (gameState?.gamePhase === "won") {
-      clearSavedRun();
+      clearSavedRun(activeProfileIdRef.current);
       setSavedRun(null);
     }
   }, [gameState?.gamePhase]);
+
+  const handleSelectProfile = useCallback((id: string) => {
+    setActiveProfileId(id);
+    setActiveProfileIdState(id);
+    setSavedRun(loadSavedRun(id));
+  }, []);
+
+  useEffect(() => {
+    const refreshProfiles = () => {
+      const latest = loadProfiles();
+      setProfiles(latest);
+      const currentActive = activeProfileIdRef.current;
+      if (currentActive && !latest.some((p) => p.id === currentActive)) {
+        setActiveProfileId(null);
+        setActiveProfileIdState(null);
+        setSavedRun(null);
+      } else if (!currentActive && latest.length === 1) {
+        setActiveProfileId(latest[0].id);
+        setActiveProfileIdState(latest[0].id);
+        setSavedRun(loadSavedRun(latest[0].id));
+      } else if (currentActive) {
+        setSavedRun(loadSavedRun(currentActive));
+      }
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshProfiles();
+      }
+    };
+    const handleStorage = (e: StorageEvent) => {
+      if (!e.key) {
+        refreshProfiles();
+        return;
+      }
+      if (
+        e.key.startsWith("french-maze:profiles:") ||
+        e.key.startsWith("french-maze:save:") ||
+        e.key.startsWith("french-maze:activeProfile:")
+      ) {
+        refreshProfiles();
+      }
+    };
+    window.addEventListener("focus", refreshProfiles);
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      window.removeEventListener("focus", refreshProfiles);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
 
   const handleAnswerSubmit = (answer: string) => {
     if (currentQuestion && (gameState?.gamePhase === "combat" || isRevealQuestionMode)) {
@@ -691,8 +765,11 @@ export default function Game() {
     return (
       <StartScreen
         onStart={startGame}
-        hasSave={Boolean(savedRun)}
-        onContinue={savedRun ? continueGame : undefined}
+        hasSave={Boolean(savedRun) && Boolean(activeProfileId)}
+        onContinue={savedRun && activeProfileId ? continueGame : undefined}
+        profiles={profiles}
+        activeProfileId={activeProfileId}
+        onSelectProfile={handleSelectProfile}
       />
     );
   }

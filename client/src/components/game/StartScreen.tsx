@@ -1,22 +1,39 @@
-import { Swords, Shield, Gem, Flame, Save } from "lucide-react";
+import { Swords, Shield, Gem, Flame, Save, UserRound, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
+import type { ChildProfile } from "@/lib/saveGame";
 
 interface StartScreenProps {
   onStart: () => void;
   hasSave?: boolean;
   onContinue?: () => void;
+  profiles: ChildProfile[];
+  activeProfileId: string | null;
+  onSelectProfile: (id: string) => void;
 }
 
-export function StartScreen({ onStart, hasSave = false, onContinue }: StartScreenProps) {
+export function StartScreen({
+  onStart,
+  hasSave = false,
+  onContinue,
+  profiles,
+  activeProfileId,
+  onSelectProfile,
+}: StartScreenProps) {
+  const activeProfile = profiles.find((p) => p.id === activeProfileId) ?? null;
+
   const handleNewAdventureClick = () => {
     if (hasSave) {
+      const who = activeProfile ? activeProfile.name : "this player";
       const confirmed = window.confirm(
-        "You have a saved adventure in progress. Starting a new one will erase it. Continue?",
+        `${who} has a saved adventure in progress. Starting a new one will erase it. Continue?`,
       );
       if (!confirmed) return;
     }
     onStart();
   };
+
+  const hasProfiles = profiles.length > 0;
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -77,8 +94,61 @@ export function StartScreen({ onStart, hasSave = false, onContinue }: StartScree
           </div>
         </div>
 
+        <div className="w-full space-y-3 pt-2" data-testid="profile-picker">
+          {hasProfiles ? (
+            <div className="rounded-xl p-4 bg-black/50 backdrop-blur-sm border border-white/10 space-y-3">
+              <div className="flex items-center gap-2 text-white/80 text-sm font-semibold">
+                <UserRound className="w-4 h-4" />
+                <span>Who's playing?</span>
+              </div>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {profiles.map((profile) => {
+                  const isActive = profile.id === activeProfileId;
+                  return (
+                    <button
+                      key={profile.id}
+                      type="button"
+                      onClick={() => onSelectProfile(profile.id)}
+                      className={
+                        isActive
+                          ? "px-3 py-2 rounded-lg border-2 border-emerald-400 bg-emerald-700/60 text-white text-sm font-semibold"
+                          : "px-3 py-2 rounded-lg border border-white/30 bg-black/40 text-white/80 hover:bg-white/10 text-sm font-medium"
+                      }
+                      data-testid={`button-select-profile-${profile.id}`}
+                    >
+                      {profile.name}
+                    </button>
+                  );
+                })}
+              </div>
+              {!activeProfile && (
+                <p className="text-xs text-orange-200/80" data-testid="text-pick-profile-prompt">
+                  Tap a name to choose who is playing.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div
+              className="rounded-xl p-4 bg-black/50 backdrop-blur-sm border border-white/10 text-white/80 text-sm space-y-3"
+              data-testid="text-no-profiles"
+            >
+              <p>No child profiles yet. Ask a parent to add one in the dashboard so each kid keeps their own saved adventure.</p>
+              <Link href="/dashboard">
+                <Button
+                  variant="outline"
+                  className="w-full bg-black/40 border border-white/30 text-white hover:bg-white/10"
+                  data-testid="button-go-dashboard-no-profiles"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Open Parent Dashboard
+                </Button>
+              </Link>
+            </div>
+          )}
+        </div>
+
         <div className="w-full space-y-3 pt-2">
-          {hasSave && onContinue && (
+          {hasSave && onContinue && activeProfile && (
             <Button
               onClick={onContinue}
               size="lg"
@@ -86,24 +156,26 @@ export function StartScreen({ onStart, hasSave = false, onContinue }: StartScree
               data-testid="button-continue-game"
             >
               <Save className="w-6 h-6 mr-2" />
-              Continue Adventure
+              Continue {activeProfile.name}'s Adventure
             </Button>
           )}
 
-          <Button
-            onClick={handleNewAdventureClick}
-            size="lg"
-            variant={hasSave ? "outline" : "default"}
-            className={
-              hasSave
-                ? "w-full h-14 text-xl font-bold font-display bg-black/40 border border-orange-500/60 text-orange-100 hover:bg-orange-900/40"
-                : "w-full h-14 text-xl font-bold font-display bg-orange-700 border border-orange-500 text-white"
-            }
-            data-testid="button-start-game"
-          >
-            <Swords className="w-6 h-6 mr-2" />
-            {hasSave ? "New Adventure" : "Enter the Dungeon"}
-          </Button>
+          {activeProfile && (
+            <Button
+              onClick={handleNewAdventureClick}
+              size="lg"
+              variant={hasSave ? "outline" : "default"}
+              className={
+                hasSave
+                  ? "w-full h-14 text-xl font-bold font-display bg-black/40 border border-orange-500/60 text-orange-100 hover:bg-orange-900/40"
+                  : "w-full h-14 text-xl font-bold font-display bg-orange-700 border border-orange-500 text-white"
+              }
+              data-testid="button-start-game"
+            >
+              <Swords className="w-6 h-6 mr-2" />
+              {hasSave ? "New Adventure" : "Enter the Dungeon"}
+            </Button>
+          )}
         </div>
       </div>
     </div>

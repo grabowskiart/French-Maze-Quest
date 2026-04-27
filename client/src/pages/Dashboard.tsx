@@ -33,7 +33,17 @@ import {
 } from "lucide-react";
 import type { GameSettings, Category, ConjugationPack, QuestionType, ProficiencyLevel, Tense } from "@shared/schema";
 import { StatsPanel } from "@/components/dashboard/StatsPanel";
-import { clearSavedRun, hasSavedRun } from "@/lib/saveGame";
+import {
+  addProfile,
+  clearSavedRun,
+  hasSavedRun,
+  loadProfiles,
+  removeProfile,
+  renameProfile,
+  MAX_PROFILES,
+  type ChildProfile,
+} from "@/lib/saveGame";
+import { Pencil, Trash2, UserRound, Users } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
   "hand-wave": <MessageCircle className="h-4 w-4" />,
@@ -59,10 +69,27 @@ export default function Dashboard() {
   const [, navigate] = useLocation();
   const [generatingLevel, setGeneratingLevel] = useState<ProficiencyLevel | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showResetSaveConfirm, setShowResetSaveConfirm] = useState(false);
-  const [hasSave, setHasSave] = useState<boolean>(() => hasSavedRun());
+  const [resetSaveTargetId, setResetSaveTargetId] = useState<string | null>(null);
   const [showAddVerbDialog, setShowAddVerbDialog] = useState(false);
   const [newVerbInput, setNewVerbInput] = useState("");
+  const [profileList, setProfileList] = useState<ChildProfile[]>(() => loadProfiles());
+  const [savedRunByProfile, setSavedRunByProfile] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const p of loadProfiles()) initial[p.id] = hasSavedRun(p.id);
+    return initial;
+  });
+  const [newProfileName, setNewProfileName] = useState("");
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+  const [editingProfileName, setEditingProfileName] = useState("");
+  const [removingProfileId, setRemovingProfileId] = useState<string | null>(null);
+
+  const refreshProfiles = () => {
+    const latest = loadProfiles();
+    setProfileList(latest);
+    const next: Record<string, boolean> = {};
+    for (const p of latest) next[p.id] = hasSavedRun(p.id);
+    setSavedRunByProfile(next);
+  };
 
   const { data: settings, isLoading: settingsLoading } = useQuery<GameSettings>({
     queryKey: ["/api/settings"],
@@ -194,13 +221,100 @@ export default function Dashboard() {
     },
   });
 
-  const handleResetSavedRun = () => {
-    clearSavedRun();
-    setHasSave(hasSavedRun());
-    setShowResetSaveConfirm(false);
+  const handleResetSavedRun = (profileId: string) => {
+    const profile = profileList.find((p) => p.id === profileId);
+    clearSavedRun(profileId);
+    refreshProfiles();
+    setResetSaveTargetId(null);
     toast({
       title: "Saved adventure cleared",
-      description: "The next visit to the game will start a fresh run.",
+      description: profile
+        ? `${profile.name}'s in-progress dungeon run has been cleared.`
+        : "The saved run has been cleared.",
+    });
+  };
+
+  const handleAddProfile = () => {
+    const trimmed = newProfileName.trim();
+    if (!trimmed) return;
+    const result = addProfile(trimmed);
+    if (result.error === "limit") {
+      toast({
+        title: "Profile limit reached",
+        description: `You can have up to ${MAX_PROFILES} profiles.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    if (result.error === "duplicate") {
+      toast({
+        title: "Name already used",
+        description: "Pick a different name for this profile.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (result.error === "empty" || !result.profile) {
+      return;
+    }
+    setNewProfileName("");
+    refreshProfiles();
+    toast({
+      title: "Profile added",
+      description: `${result.profile.name} can now play with their own saved adventure.`,
+    });
+  };
+
+  const startEditProfile = (profile: ChildProfile) => {
+    setEditingProfileId(profile.id);
+    setEditingProfileName(profile.name);
+  };
+
+  const cancelEditProfile = () => {
+    setEditingProfileId(null);
+    setEditingProfileName("");
+  };
+
+  const handleRenameProfile = () => {
+    if (!editingProfileId) return;
+    const result = renameProfile(editingProfileId, editingProfileName);
+    if (result.error === "duplicate") {
+      toast({
+        title: "Name already used",
+        description: "Pick a different name for this profile.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (result.error === "not_found") {
+      toast({
+        title: "Profile not found",
+        description: "That profile no longer exists.",
+        variant: "destructive",
+      });
+      cancelEditProfile();
+      refreshProfiles();
+      return;
+    }
+    if (result.error === "empty" || !result.profile) {
+      return;
+    }
+    cancelEditProfile();
+    refreshProfiles();
+    toast({
+      title: "Profile renamed",
+      description: `Updated to ${result.profile.name}.`,
+    });
+  };
+
+  const handleRemoveProfile = (profile: ChildProfile) => {
+    removeProfile(profile.id);
+    setRemovingProfileId(null);
+    if (editingProfileId === profile.id) cancelEditProfile();
+    refreshProfiles();
+    toast({
+      title: "Profile removed",
+      description: `${profile.name} and their saved adventure have been deleted.`,
     });
   };
 
@@ -568,53 +682,212 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-testid="card-child-profiles">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <RotateCcw className="h-5 w-5 text-destructive" />
-              Reset Saved Adventure
+              <Users className="h-5 w-5 text-primary" />
+              Child Profiles
             </CardTitle>
             <CardDescription>
-              Clear the in-progress dungeon run saved in this browser. Use this to start a child fresh — for a new sibling, or after they get stuck. The next visit to the game will only show "Enter the Dungeon".
+              Add a profile for each child so siblings can play without overwriting each other's saved adventure. Each profile has its own in-progress dungeon run. You can have up to {MAX_PROFILES} profiles.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {showResetSaveConfirm ? (
-              <div className="flex items-center gap-3 p-3 rounded-md border border-destructive/50 bg-destructive/5">
-                <p className="text-sm flex-1">Are you sure? The current adventure progress will be lost.</p>
-                <Button
-                  variant="destructive"
-                  onClick={handleResetSavedRun}
-                  data-testid="button-confirm-reset-saved-run"
-                >
-                  Yes, Clear Save
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setShowResetSaveConfirm(false)}
-                  data-testid="button-cancel-reset-saved-run"
-                >
-                  Cancel
-                </Button>
-              </div>
+          <CardContent className="space-y-4">
+            {profileList.length === 0 ? (
+              <p className="text-sm text-muted-foreground" data-testid="text-no-profiles-dashboard">
+                No profiles yet. Add one below to get started.
+              </p>
             ) : (
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowResetSaveConfirm(true)}
-                  disabled={!hasSave}
-                  data-testid="button-reset-saved-run"
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset Saved Adventure
-                </Button>
-                {!hasSave && (
-                  <p className="text-sm text-muted-foreground" data-testid="text-no-saved-run">
-                    No saved adventure to clear.
-                  </p>
-                )}
+              <div className="space-y-2">
+                {profileList.map((profile) => {
+                  const isEditing = editingProfileId === profile.id;
+                  const isRemoving = removingProfileId === profile.id;
+                  const isResetting = resetSaveTargetId === profile.id;
+                  const profileHasSave = Boolean(savedRunByProfile[profile.id]);
+                  return (
+                    <div
+                      key={profile.id}
+                      className="rounded-md border p-3 space-y-2"
+                      data-testid={`row-profile-${profile.id}`}
+                    >
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="p-2 rounded-md bg-primary/10 text-primary">
+                            <UserRound className="h-4 w-4" />
+                          </div>
+                          {isEditing ? (
+                            <Input
+                              autoFocus
+                              value={editingProfileName}
+                              onChange={(e) => setEditingProfileName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleRenameProfile();
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  cancelEditProfile();
+                                }
+                              }}
+                              className="max-w-xs"
+                              data-testid={`input-rename-profile-${profile.id}`}
+                            />
+                          ) : (
+                            <div className="min-w-0">
+                              <p className="font-medium truncate" data-testid={`text-profile-name-${profile.id}`}>
+                                {profile.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground" data-testid={`text-profile-save-status-${profile.id}`}>
+                                {profileHasSave ? "Has a saved adventure" : "No saved adventure yet"}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {isEditing ? (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={handleRenameProfile}
+                                disabled={!editingProfileName.trim()}
+                                data-testid={`button-save-rename-${profile.id}`}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={cancelEditProfile}
+                                data-testid={`button-cancel-rename-${profile.id}`}
+                              >
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => startEditProfile(profile)}
+                                data-testid={`button-edit-profile-${profile.id}`}
+                              >
+                                <Pencil className="h-3.5 w-3.5 mr-1" />
+                                Rename
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setResetSaveTargetId(profile.id)}
+                                disabled={!profileHasSave}
+                                data-testid={`button-reset-saved-run-${profile.id}`}
+                              >
+                                <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                                Reset Save
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setRemovingProfileId(profile.id)}
+                                data-testid={`button-remove-profile-${profile.id}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-1 text-destructive" />
+                                Remove
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {isResetting && (
+                        <div
+                          className="flex items-center gap-3 p-3 rounded-md border border-destructive/50 bg-destructive/5"
+                          data-testid={`confirm-reset-saved-run-${profile.id}`}
+                        >
+                          <p className="text-sm flex-1">
+                            Clear {profile.name}'s saved adventure? Their current progress will be lost.
+                          </p>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleResetSavedRun(profile.id)}
+                            data-testid={`button-confirm-reset-saved-run-${profile.id}`}
+                          >
+                            Yes, Clear
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setResetSaveTargetId(null)}
+                            data-testid={`button-cancel-reset-saved-run-${profile.id}`}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                      {isRemoving && (
+                        <div
+                          className="flex items-center gap-3 p-3 rounded-md border border-destructive/50 bg-destructive/5"
+                          data-testid={`confirm-remove-profile-${profile.id}`}
+                        >
+                          <p className="text-sm flex-1">
+                            Remove {profile.name}? Their saved adventure will also be deleted.
+                          </p>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleRemoveProfile(profile)}
+                            data-testid={`button-confirm-remove-profile-${profile.id}`}
+                          >
+                            Yes, Remove
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRemovingProfileId(null)}
+                            data-testid={`button-cancel-remove-profile-${profile.id}`}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Add a new profile</p>
+              <form
+                className="flex flex-wrap gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleAddProfile();
+                }}
+              >
+                <Input
+                  value={newProfileName}
+                  onChange={(e) => setNewProfileName(e.target.value)}
+                  placeholder="Child's name"
+                  maxLength={30}
+                  className="max-w-xs"
+                  disabled={profileList.length >= MAX_PROFILES}
+                  data-testid="input-new-profile-name"
+                />
+                <Button
+                  type="submit"
+                  disabled={!newProfileName.trim() || profileList.length >= MAX_PROFILES}
+                  data-testid="button-add-profile"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Profile
+                </Button>
+              </form>
+              {profileList.length >= MAX_PROFILES && (
+                <p className="text-xs text-muted-foreground" data-testid="text-profile-limit">
+                  Profile limit reached ({MAX_PROFILES}). Remove one to add a new child.
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
