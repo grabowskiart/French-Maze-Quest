@@ -87,7 +87,7 @@ export function WinScreen({
                 <img
                   src="/images/creatures/victory-scene.png"
                   alt="Chest of gold, fallen dragon, and dungeon exit"
-                  className="h-[260px] w-full object-cover"
+                  className="h-[200px] sm:h-[240px] lg:h-[260px] w-full object-contain bg-black/50"
                 />
               </div>
             )}

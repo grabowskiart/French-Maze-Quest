@@ -790,7 +790,7 @@ export default function Game() {
                     <img
                       src={encounter.image}
                       alt={encounter.name}
-                      className={`w-full object-cover ${encounter.isBoss ? "h-[420px]" : "h-[400px]"}` }
+                      className={`w-full object-contain ${encounter.isBoss ? "h-[260px] sm:h-[360px] lg:h-[420px]" : "h-[240px] sm:h-[340px] lg:h-[400px]"}` }
                     />
                   </div>
                   <div className="mt-3 space-y-1">
@@ -885,7 +885,7 @@ export default function Game() {
             <img
               src={defeatedCreatureModal.image}
               alt={`${defeatedCreatureModal.name} defeated`}
-              className="mx-auto h-[360px] w-full max-w-[400px] rounded-lg border object-cover"
+              className="mx-auto h-[240px] sm:h-[320px] lg:h-[360px] w-full max-w-[400px] rounded-lg border object-contain bg-black/50"
             />
             <Button onClick={() => setDefeatedCreatureModal(null)} data-testid="button-defeated-creature-continue">
               Continue
