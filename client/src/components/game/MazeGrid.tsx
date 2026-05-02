@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Maze, Position } from "@shared/schema";
@@ -20,7 +21,7 @@ interface MazeGridProps {
   onMove?: (direction: "up" | "down" | "left" | "right") => void;
 }
 
-export function MazeGrid({
+function MazeGridComponent({
   maze,
   playerPosition,
   isMoving,
@@ -214,3 +215,5 @@ export function MazeGrid({
     </div>
   );
 }
+
+export const MazeGrid = memo(MazeGridComponent);

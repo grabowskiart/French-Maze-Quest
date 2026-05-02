@@ -625,7 +625,7 @@ export default function Game() {
     setCombatMessage(`You used a potion and instantly defeated ${encounter.name}!`);
   };
 
-  const handleTileClick = (x: number, y: number) => {
+  const handleTileClickImpl = (x: number, y: number) => {
     if (!gameState || gameState.gamePhase !== "exploring" || isRevealQuestionActive || isFeedbackModalOpen || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen || isDefeatedCreatureModalOpen) return;
 
     const dx = Math.abs(x - gameState.playerPosition.x);
@@ -728,7 +728,7 @@ export default function Game() {
     }
   };
 
-  const handleMove = (direction: "up" | "down" | "left" | "right") => {
+  const handleMoveImpl = (direction: "up" | "down" | "left" | "right") => {
     if (!gameState || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen || isDefeatedCreatureModalOpen) return;
     const { x, y } = gameState.playerPosition;
     let newX = x;
@@ -742,9 +742,23 @@ export default function Game() {
     }
 
     if (newX >= 0 && newX < gameState.maze.width && newY >= 0 && newY < gameState.maze.height) {
-      handleTileClick(newX, newY);
+      handleTileClickImpl(newX, newY);
     }
   };
+
+  // Stable callback identities so MazeGrid (memoized) doesn't re-render on
+  // every parent render (e.g. the per-second sessionTime tick). The refs are
+  // updated each render to capture the latest closure values.
+  const handleTileClickRef = useRef(handleTileClickImpl);
+  handleTileClickRef.current = handleTileClickImpl;
+  const handleMoveRef = useRef(handleMoveImpl);
+  handleMoveRef.current = handleMoveImpl;
+  const handleTileClick = useCallback((x: number, y: number) => {
+    handleTileClickRef.current(x, y);
+  }, []);
+  const handleMove = useCallback((direction: "up" | "down" | "left" | "right") => {
+    handleMoveRef.current(direction);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
