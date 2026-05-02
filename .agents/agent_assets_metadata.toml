@@ -84,3 +84,63 @@ id = "oUSIi-hp9UFTDJ4YHZRaz"
 uri = "file://client/public/images/maze/pickup-potion.png"
 type = "image"
 title = "generated_image"
+
+[[generated]]
+id = "pi-erBVuLSTdKlBLE9oTB"
+uri = "file://client/public/images/creatures/cursed-mimic-alive.png"
+type = "image"
+title = "cursed-mimic alive"
+
+[[generated]]
+id = "0EHpgLzlQpB3h6R6DaBaG"
+uri = "file://client/public/images/creatures/cursed-mimic-defeated.png"
+type = "image"
+title = "cursed-mimic defeated"
+
+[[generated]]
+id = "l9hqY7N0i5LXXy4q_8IQM"
+uri = "file://client/public/images/creatures/spider-brood-alive.png"
+type = "image"
+title = "spider brood alive v2"
+
+[[generated]]
+id = "OKgI5f_CHkG1_27JzZieN"
+uri = "file://client/public/images/creatures/spider-brood-defeated.png"
+type = "image"
+title = "spider brood defeated v2"
+
+[[generated]]
+id = "8YiE0M_6jAStQxonPUVqo"
+uri = "file://client/public/images/creatures/lich-apprentice-alive.png"
+type = "image"
+title = "lich-apprentice alive"
+
+[[generated]]
+id = "hR6Cu_U1uKQay7TQ7eEEQ"
+uri = "file://client/public/images/creatures/lich-apprentice-defeated.png"
+type = "image"
+title = "lich-apprentice defeated"
+
+[[generated]]
+id = "XPwiwIoNaetiQUC8lKQYB"
+uri = "file://client/public/images/creatures/mossy-slime-alive.png"
+type = "image"
+title = "mossy-slime alive"
+
+[[generated]]
+id = "rfoktOoFHueul59kJ_BAX"
+uri = "file://client/public/images/creatures/mossy-slime-defeated.png"
+type = "image"
+title = "mossy slime defeated v2"
+
+[[generated]]
+id = "s9BhGZ2brb71m_-cXPfNY"
+uri = "file://client/public/images/creatures/rune-golem-alive.png"
+type = "image"
+title = "rune-golem alive"
+
+[[generated]]
+id = "XB-MX-C78J8CpkBjwQGCn"
+uri = "file://client/public/images/creatures/rune-golem-defeated.png"
+type = "image"
+title = "rune-golem defeated"

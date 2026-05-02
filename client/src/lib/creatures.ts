@@ -24,6 +24,11 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
   { id: "infernal-imp", name: "Infernal Imp", maxHp: 3, image: "/images/creatures/infernal-imp-alive.png", defeatedImage: "/images/creatures/infernal-imp-defeated.png" },
   { id: "dungeon-minotaur", name: "Dungeon Minotaur", maxHp: 6, image: "/images/creatures/dungeon-minotaur-alive.png", defeatedImage: "/images/creatures/dungeon-minotaur-defeated.png" },
   { id: "nightmare-hound", name: "Nightmare Hound", maxHp: 4, image: "/images/creatures/nightmare-hound-alive.png", defeatedImage: "/images/creatures/nightmare-hound-defeated.png" },
+  { id: "cursed-mimic", name: "Cursed Mimic", maxHp: 4, image: "/images/creatures/cursed-mimic-alive.png", defeatedImage: "/images/creatures/cursed-mimic-defeated.png" },
+  { id: "spider-brood", name: "Spider Brood", maxHp: 3, image: "/images/creatures/spider-brood-alive.png", defeatedImage: "/images/creatures/spider-brood-defeated.png" },
+  { id: "lich-apprentice", name: "Lich Apprentice", maxHp: 5, image: "/images/creatures/lich-apprentice-alive.png", defeatedImage: "/images/creatures/lich-apprentice-defeated.png" },
+  { id: "mossy-slime", name: "Mossy Slime", maxHp: 3, image: "/images/creatures/mossy-slime-alive.png", defeatedImage: "/images/creatures/mossy-slime-defeated.png" },
+  { id: "rune-golem", name: "Rune Golem", maxHp: 6, image: "/images/creatures/rune-golem-alive.png", defeatedImage: "/images/creatures/rune-golem-defeated.png" },
 ];
 
 const maxNormalHp = Math.max(...CREATURE_ROSTER.map((creature) => creature.maxHp));
