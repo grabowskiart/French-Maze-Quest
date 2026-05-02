@@ -332,6 +332,7 @@ export default function Game() {
           setCombatMessage("You were defeated! You respawned 10 steps back with 3 hearts.");
           setShowDeathModal(true);
         } else {
+          playLoseLifeSound();
           setCombatMessage(`${encounterRef.current.name} hit you! Hearts left: ${nextHearts}.`);
           refetchQuestion();
         }
