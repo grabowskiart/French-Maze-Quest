@@ -214,7 +214,10 @@ export interface Question {
   proficiencyLevel: ProficiencyLevel;
 }
 
-// Safe subset for client delivery. Excludes answer/feedback fields that can reveal solutions.
+// Safe subset for client delivery. Includes answer/feedback fields so the
+// client can validate locally and show feedback instantly without waiting on
+// a network round-trip. The server still re-validates on /api/questions/answer
+// for spaced-repetition stats; the client is non-authoritative.
 export interface PublicQuestion {
   id: string;
   type: QuestionType;
@@ -225,6 +228,23 @@ export interface PublicQuestion {
   lastSeen: number | null;
   category: string;
   proficiencyLevel: ProficiencyLevel;
+  correctAnswer: string;
+  explanation: string;
+  hint: string;
+}
+
+/**
+ * Pure helper used by both the server and the client to compare a user
+ * answer against the canonical correct answer. Mirrors the server's
+ * accent-insensitive, case-insensitive, trim-aware compare. Keeping this
+ * shared guarantees client-side optimistic feedback agrees with the
+ * authoritative server check.
+ */
+export function isAnswerCorrect(userAnswer: string, correctAnswer: string): boolean {
+  const stripAccents = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const a = stripAccents(userAnswer.toLowerCase().trim());
+  const b = stripAccents(correctAnswer.toLowerCase().trim());
+  return a === b;
 }
 
 export interface GameState {

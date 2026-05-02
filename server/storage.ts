@@ -57,7 +57,7 @@ function dbQuestionToQuestion(dbQ: DbQuestion, state?: DbQuestionState | null, c
 }
 
 function toPublicQuestion(question: Question): PublicQuestion {
-  const { id, type, question: prompt, options, difficulty, streak, lastSeen, category, proficiencyLevel } = question;
+  const { id, type, question: prompt, options, difficulty, streak, lastSeen, category, proficiencyLevel, correctAnswer, explanation, hint } = question;
   return {
     id,
     type,
@@ -68,6 +68,9 @@ function toPublicQuestion(question: Question): PublicQuestion {
     lastSeen,
     category,
     proficiencyLevel,
+    correctAnswer,
+    explanation,
+    hint,
   };
 }
 

@@ -11,6 +11,7 @@ import { generateMaze, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
+import { isAnswerCorrect } from "@shared/schema";
 import { BOSS_CREATURE, CREATURE_ROSTER, scaleCreatureMaxHp, getCreatureDifficultyBadge, pickRandomTaunt, pickCreatureForProgress, type ActiveEncounter, type DifficultyBadge } from "@/lib/creatures";
 import { Badge } from "@/components/ui/badge";
 import { Star } from "lucide-react";
@@ -259,6 +260,16 @@ export default function Game() {
   const recordCreatureDefeatedRef = useRef(recordCreatureDefeated);
   recordCreatureDefeatedRef.current = recordCreatureDefeated;
 
+  // Tracks whether we still need to fetch a fresh question after the
+  // background /api/questions/answer call settles. We defer the refetch
+  // until then so spaced-repetition state (lastSeen/streak) is recorded
+  // before /api/questions/next picks the next question.
+  const pendingRefetchAfterAnswerRef = useRef(false);
+
+  // Background mutation: the client has already shown feedback and applied
+  // gameplay state synchronously in handleAnswerSubmit (via shared
+  // isAnswerCorrect). This call exists so the server can update
+  // spaced-repetition stats. UI is non-authoritative for latency reasons.
   const submitAnswerMutation = useMutation({
     mutationFn: async ({ questionId, answer }: { questionId: string; answer: string }) => {
       const res = await apiRequest("POST", "/api/questions/answer", {
@@ -268,102 +279,109 @@ export default function Game() {
       });
       return res.json() as Promise<AnswerResult>;
     },
-    onSuccess: (result) => {
-      const activeState = gameStateRef.current;
-      if (!activeState) return;
-
-      if (revealQuestionModeRef.current) {
-        setFeedbackResult(result);
-        if (result.correct) {
-          const updatedMaze = revealArea(activeState.maze, activeState.playerPosition, 5);
-          setGameState((prev) => prev ? { ...prev, maze: updatedMaze } : prev);
-          setCombatMessage("Great! You revealed a 5-tile radius around your position.");
-        } else {
-          setCombatMessage("Reveal question was incorrect. No tiles were revealed.");
-        }
-        setIsRevealQuestionMode(false);
-        return;
-      }
-
-      if (activeState.gamePhase !== "combat" || !encounterRef.current) return;
-
-      setFeedbackResult(result);
-
-      const newStreak = result.correct ? activeState.streak + 1 : 0;
-      setMaxStreak((prev) => Math.max(prev, newStreak));
-
-      setGameState((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          streak: newStreak,
-          questionsAnswered: prev.questionsAnswered + 1,
-          correctAnswers: result.correct ? prev.correctAnswers + 1 : prev.correctAnswers,
-          lastAnswerCorrect: result.correct,
-        };
-      });
-
-      if (result.correct) {
-        playHitSound();
-        const dmg = Math.max(1, weaponRef.current.damage);
-        const nextHp = encounterRef.current.hp - dmg;
-        setCombatMessage(`Direct hit with ${weaponRef.current.name}! ${encounterRef.current.name} has ${Math.max(nextHp, 0)} HP left.`);
-        if (nextHp <= 0) {
-          const defeated = encounterRef.current;
-          setEncounter(null);
-          setDefeatedCreatureModal({ name: defeated.name, image: defeated.defeatedImage, isBoss: defeated.isBoss });
-          recordCreatureDefeatedRef.current(defeated.id);
-          if (defeated.isBoss) {
-            setBossDefeated(true);
-            setGameState((prev) => prev ? { ...prev, gamePhase: "won" } : prev);
-            setCombatMessage("The Dragon Warden is defeated! You claim the chest of gold.");
-          } else {
-            setGameState((prev) => prev ? { ...prev, gamePhase: "exploring" } : prev);
-            setNextEncounterAt(randomInt(3, 5));
-            setStepsSinceEncounter(0);
-            queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
-          }
-        } else {
-          setEncounter({ ...encounterRef.current, hp: nextHp });
-          refetchQuestion();
-        }
-      } else {
-        const nextHearts = heartsRef.current - 1;
-        setHearts(nextHearts);
-
-        if (nextHearts <= 0) {
-          playDeathSound();
-          const history = pathHistoryRef.current;
-          const stepsBackIndex = Math.max(0, history.length - 1 - 10);
-          const respawnPosition = history[stepsBackIndex] ?? activeState.maze.entrance;
-          const respawnHistory = history.slice(0, stepsBackIndex + 1);
-          const respawnMaze = updateVisibility(activeState.maze, respawnPosition, settingsRef.current.visibilityRadius);
-
-          setPathHistory(respawnHistory.length ? respawnHistory : [respawnPosition]);
-          setHearts(3);
-          setEncounter(null);
-          setGameState((prev) => {
-            if (!prev) return prev;
-            return {
-              ...prev,
-              maze: respawnMaze,
-              playerPosition: respawnPosition,
-              gamePhase: "exploring",
-              remainingSteps: 1,
-            };
-          });
-          setStepsSinceEncounter(0);
-          setNextEncounterAt(randomInt(3, 5));
-          setCombatMessage("You were defeated! You respawned 10 steps back with 3 hearts.");
-          setShowDeathModal(true);
-        } else {
-          playLoseLifeSound();
-          setCombatMessage(`${encounterRef.current.name} hit you! Hearts left: ${nextHearts}.`);
-          refetchQuestion();
-        }
+    onSettled: () => {
+      if (pendingRefetchAfterAnswerRef.current) {
+        pendingRefetchAfterAnswerRef.current = false;
+        refetchQuestion();
       }
     },
   });
+
+  const applyAnswerResult = useCallback((result: AnswerResult) => {
+    const activeState = gameStateRef.current;
+    if (!activeState) return;
+
+    if (revealQuestionModeRef.current) {
+      setFeedbackResult(result);
+      if (result.correct) {
+        const updatedMaze = revealArea(activeState.maze, activeState.playerPosition, 5);
+        setGameState((prev) => prev ? { ...prev, maze: updatedMaze } : prev);
+        setCombatMessage("Great! You revealed a 5-tile radius around your position.");
+      } else {
+        setCombatMessage("Reveal question was incorrect. No tiles were revealed.");
+      }
+      setIsRevealQuestionMode(false);
+      return;
+    }
+
+    if (activeState.gamePhase !== "combat" || !encounterRef.current) return;
+
+    setFeedbackResult(result);
+
+    const newStreak = result.correct ? activeState.streak + 1 : 0;
+    setMaxStreak((prev) => Math.max(prev, newStreak));
+
+    setGameState((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        streak: newStreak,
+        questionsAnswered: prev.questionsAnswered + 1,
+        correctAnswers: result.correct ? prev.correctAnswers + 1 : prev.correctAnswers,
+        lastAnswerCorrect: result.correct,
+      };
+    });
+
+    if (result.correct) {
+      playHitSound();
+      const dmg = Math.max(1, weaponRef.current.damage);
+      const nextHp = encounterRef.current.hp - dmg;
+      setCombatMessage(`Direct hit with ${weaponRef.current.name}! ${encounterRef.current.name} has ${Math.max(nextHp, 0)} HP left.`);
+      if (nextHp <= 0) {
+        const defeated = encounterRef.current;
+        setEncounter(null);
+        setDefeatedCreatureModal({ name: defeated.name, image: defeated.defeatedImage, isBoss: defeated.isBoss });
+        recordCreatureDefeatedRef.current(defeated.id);
+        if (defeated.isBoss) {
+          setBossDefeated(true);
+          setGameState((prev) => prev ? { ...prev, gamePhase: "won" } : prev);
+          setCombatMessage("The Dragon Warden is defeated! You claim the chest of gold.");
+        } else {
+          setGameState((prev) => prev ? { ...prev, gamePhase: "exploring" } : prev);
+          setNextEncounterAt(randomInt(3, 5));
+          setStepsSinceEncounter(0);
+          queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
+        }
+      } else {
+        setEncounter({ ...encounterRef.current, hp: nextHp });
+        pendingRefetchAfterAnswerRef.current = true;
+      }
+    } else {
+      const nextHearts = heartsRef.current - 1;
+      setHearts(nextHearts);
+
+      if (nextHearts <= 0) {
+        playDeathSound();
+        const history = pathHistoryRef.current;
+        const stepsBackIndex = Math.max(0, history.length - 1 - 10);
+        const respawnPosition = history[stepsBackIndex] ?? activeState.maze.entrance;
+        const respawnHistory = history.slice(0, stepsBackIndex + 1);
+        const respawnMaze = updateVisibility(activeState.maze, respawnPosition, settingsRef.current.visibilityRadius);
+
+        setPathHistory(respawnHistory.length ? respawnHistory : [respawnPosition]);
+        setHearts(3);
+        setEncounter(null);
+        setGameState((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            maze: respawnMaze,
+            playerPosition: respawnPosition,
+            gamePhase: "exploring",
+            remainingSteps: 1,
+          };
+        });
+        setStepsSinceEncounter(0);
+        setNextEncounterAt(randomInt(3, 5));
+        setCombatMessage("You were defeated! You respawned 10 steps back with 3 hearts.");
+        setShowDeathModal(true);
+      } else {
+        playLoseLifeSound();
+        setCombatMessage(`${encounterRef.current.name} hit you! Hearts left: ${nextHearts}.`);
+        pendingRefetchAfterAnswerRef.current = true;
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (gameState && gameState.gamePhase !== "start" && gameState.gamePhase !== "won") {
@@ -588,12 +606,27 @@ export default function Game() {
   }, []);
 
   const handleAnswerSubmit = (answer: string) => {
-    if (currentQuestion && (gameState?.gamePhase === "combat" || isRevealQuestionMode)) {
-      submitAnswerMutation.mutate({
-        questionId: currentQuestion.id,
-        answer,
-      });
-    }
+    if (!currentQuestion) return;
+    if (gameState?.gamePhase !== "combat" && !isRevealQuestionMode) return;
+
+    // Compute the result locally for instant feedback. Mirrors the server's
+    // accent/case-insensitive compare via shared isAnswerCorrect, so the
+    // client UI doesn't have to wait on the (sometimes 2-3s) network call.
+    const correct = isAnswerCorrect(answer, currentQuestion.correctAnswer);
+    const result: AnswerResult = {
+      correct,
+      correctAnswer: currentQuestion.correctAnswer,
+      explanation: currentQuestion.explanation,
+      hint: currentQuestion.hint,
+    };
+    applyAnswerResult(result);
+
+    // Fire-and-forget: tell the server so spaced-repetition stats update.
+    // Errors are intentionally swallowed — the gameplay UI is already done.
+    submitAnswerMutation.mutate(
+      { questionId: currentQuestion.id, answer },
+      { onError: () => { /* no-op: client-side result already applied */ } },
+    );
   };
 
   const handleFeedbackContinue = () => {
