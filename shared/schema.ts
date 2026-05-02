@@ -90,6 +90,14 @@ export const questionStates = pgTable("question_states", {
     table.profileId,
     table.lastSeen,
   ),
+  // Supports the per-profile GROUP BY question_id used by the stats endpoint
+  // (per-category rollup + needs-practice). Leading column is profile_id so
+  // the WHERE filter narrows the scan, then the index is already ordered by
+  // question_id for the grouping/joining step.
+  profileQuestionIdx: index("question_states_profile_question_idx").on(
+    table.profileId,
+    table.questionId,
+  ),
 }));
 
 export const gameSettings = pgTable("game_settings", {

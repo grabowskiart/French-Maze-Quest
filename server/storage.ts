@@ -295,64 +295,88 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStats(profileId?: string): Promise<StatsResponse> {
-    // Three independent SELECTs — fire them concurrently instead of serially.
-    const stateRowsQuery = db
-      .select({
-        questionId: questionStates.questionId,
-        timesAnswered: questionStates.timesAnswered,
-        timesCorrect: questionStates.timesCorrect,
-        streak: questionStates.streak,
-      })
-      .from(questionStates);
+    // Push the aggregation into SQL: instead of pulling every active question
+    // and every question_states row into Node and grouping in JS, let the DB
+    // do the GROUP BY. Two parallel queries — one for per-category rollups
+    // (which also yields the overall summary), one for the bottom-10 needs-
+    // practice list — keep this endpoint flat as history grows.
+    const profileFilter = profileId
+      ? sql`profile_id = ${profileId}`
+      : sql`true`;
 
-    const [allCategories, activeQuestions, stateRows] = await Promise.all([
-      db.select().from(categories),
-      db
-        .select({
-          questionId: questions.id,
-          questionText: questions.question,
-          type: questions.type,
-          categoryId: questions.categoryId,
-        })
-        .from(questions)
-        .where(eq(questions.isActive, true)),
-      profileId
-        ? stateRowsQuery.where(eq(questionStates.profileId, profileId))
-        : stateRowsQuery,
+    const [byCategoryResult, needsPracticeResult] = await Promise.all([
+      db.execute<{
+      category_id: number | null;
+      category_name: string | null;
+      total_questions: number;
+      attempted_questions: number;
+      total_answers: number;
+      total_correct: number;
+      mastered_questions: number;
+    }>(sql`
+      WITH agg AS (
+        SELECT
+          question_id,
+          SUM(times_answered)::int AS times_answered,
+          SUM(times_correct)::int AS times_correct,
+          MAX(streak)::int AS max_streak
+        FROM ${questionStates}
+        WHERE ${profileFilter}
+        GROUP BY question_id
+      )
+      SELECT
+        q.category_id AS category_id,
+        c.display_name AS category_name,
+        COUNT(*)::int AS total_questions,
+        COUNT(*) FILTER (WHERE COALESCE(a.times_answered, 0) > 0)::int AS attempted_questions,
+        COALESCE(SUM(a.times_answered), 0)::int AS total_answers,
+        COALESCE(SUM(a.times_correct), 0)::int AS total_correct,
+        COUNT(*) FILTER (WHERE COALESCE(a.max_streak, 0) >= 3)::int AS mastered_questions
+      FROM ${questions} q
+      LEFT JOIN agg a ON a.question_id = q.id
+      LEFT JOIN ${categories} c ON c.id = q.category_id
+      WHERE q.is_active = true
+      GROUP BY q.category_id, c.display_name
+    `),
+      db.execute<{
+      id: number;
+      question: string;
+      type: string;
+      category_id: number | null;
+      category_name: string | null;
+      times_answered: number;
+      times_correct: number;
+      max_streak: number;
+      accuracy: number;
+    }>(sql`
+      WITH agg AS (
+        SELECT
+          question_id,
+          SUM(times_answered)::int AS times_answered,
+          SUM(times_correct)::int AS times_correct,
+          MAX(streak)::int AS max_streak
+        FROM ${questionStates}
+        WHERE ${profileFilter}
+        GROUP BY question_id
+        HAVING SUM(times_answered) > 0 AND SUM(times_correct) < SUM(times_answered)
+      )
+      SELECT
+        q.id AS id,
+        q.question AS question,
+        q.type AS type,
+        q.category_id AS category_id,
+        c.display_name AS category_name,
+        a.times_answered AS times_answered,
+        a.times_correct AS times_correct,
+        a.max_streak AS max_streak,
+        (a.times_correct::float / NULLIF(a.times_answered, 0)) AS accuracy
+      FROM agg a
+      JOIN ${questions} q ON q.id = a.question_id AND q.is_active = true
+      LEFT JOIN ${categories} c ON c.id = q.category_id
+      ORDER BY accuracy ASC, a.times_answered DESC, q.id ASC
+      LIMIT 10
+    `),
     ]);
-
-    const categoryNameById = new Map<number, string>();
-    for (const c of allCategories) categoryNameById.set(c.id, c.displayName);
-
-    type StateAgg = { timesAnswered: number; timesCorrect: number; streak: number };
-    const stateByQuestionId = new Map<number, StateAgg>();
-    for (const s of stateRows) {
-      const existing = stateByQuestionId.get(s.questionId);
-      if (existing) {
-        existing.timesAnswered += s.timesAnswered;
-        existing.timesCorrect += s.timesCorrect;
-        existing.streak = Math.max(existing.streak, s.streak);
-      } else {
-        stateByQuestionId.set(s.questionId, {
-          timesAnswered: s.timesAnswered,
-          timesCorrect: s.timesCorrect,
-          streak: s.streak,
-        });
-      }
-    }
-
-    const rows = activeQuestions.map((q) => {
-      const agg = stateByQuestionId.get(q.questionId);
-      return {
-        questionId: q.questionId,
-        questionText: q.questionText,
-        type: q.type,
-        categoryId: q.categoryId,
-        timesAnswered: agg?.timesAnswered ?? 0,
-        timesCorrect: agg?.timesCorrect ?? 0,
-        streak: agg?.streak ?? 0,
-      };
-    });
 
     let totalQuestions = 0;
     let attemptedQuestions = 0;
@@ -360,83 +384,58 @@ export class DatabaseStorage implements IStorage {
     let totalCorrect = 0;
     let masteredQuestions = 0;
 
-    type CatAgg = { totalAnswers: number; totalCorrect: number; attempted: number; total: number };
-    const catAggById = new Map<number | null, CatAgg>();
-    const ensureCat = (id: number | null) => {
-      const key = id ?? -1;
-      if (!catAggById.has(key)) {
-        catAggById.set(key, { totalAnswers: 0, totalCorrect: 0, attempted: 0, total: 0 });
-      }
-      return catAggById.get(key)!;
-    };
+    const byCategory = byCategoryResult.rows
+      .map((r) => {
+        const id = r.category_id ?? null;
+        const name = id !== null
+          ? (r.category_name ?? "Unknown")
+          : "Verbs (Conjugation)";
+        const catTotalQuestions = Number(r.total_questions);
+        const catAttempted = Number(r.attempted_questions);
+        const catAnswers = Number(r.total_answers);
+        const catCorrect = Number(r.total_correct);
+        const catMastered = Number(r.mastered_questions);
 
-    const needsPracticeCandidates: Array<{
-      id: number;
-      question: string;
-      type: QuestionType;
-      categoryName: string;
-      timesAnswered: number;
-      timesCorrect: number;
-      streak: number;
-      accuracy: number;
-    }> = [];
+        totalQuestions += catTotalQuestions;
+        attemptedQuestions += catAttempted;
+        totalAnswers += catAnswers;
+        totalCorrect += catCorrect;
+        masteredQuestions += catMastered;
 
-    for (const row of rows) {
-      totalQuestions += 1;
-      const answered = row.timesAnswered ?? 0;
-      const correct = row.timesCorrect ?? 0;
-      const streak = row.streak ?? 0;
-      totalAnswers += answered;
-      totalCorrect += correct;
-      if (answered > 0) attemptedQuestions += 1;
-      if (streak >= 3) masteredQuestions += 1;
-
-      const catKey = row.categoryId ?? null;
-      const agg = ensureCat(catKey);
-      agg.total += 1;
-      agg.totalAnswers += answered;
-      agg.totalCorrect += correct;
-      if (answered > 0) agg.attempted += 1;
-
-      if (answered > 0 && correct < answered) {
-        const accuracy = correct / answered;
-        const text = row.questionText ?? "";
-        const trimmed = text.length > 120 ? text.slice(0, 117) + "…" : text;
-        needsPracticeCandidates.push({
-          id: row.questionId,
-          question: trimmed,
-          type: row.type as QuestionType,
-          categoryName: row.categoryId ? (categoryNameById.get(row.categoryId) ?? "General") : "Verbs",
-          timesAnswered: answered,
-          timesCorrect: correct,
-          streak,
-          accuracy,
-        });
-      }
-    }
+        return {
+          categoryId: id,
+          categoryName: name,
+          totalAnswers: catAnswers,
+          totalCorrect: catCorrect,
+          totalIncorrect: catAnswers - catCorrect,
+          attemptedQuestions: catAttempted,
+          totalQuestions: catTotalQuestions,
+        };
+      })
+      .sort((a, b) =>
+        b.totalAnswers - a.totalAnswers || a.categoryName.localeCompare(b.categoryName),
+      );
 
     const totalIncorrect = totalAnswers - totalCorrect;
     const accuracy = totalAnswers > 0 ? totalCorrect / totalAnswers : 0;
 
-    const byCategory = Array.from(catAggById.entries()).map(([key, agg]) => {
-      const id = key === -1 ? null : (key as number);
-      const name = id !== null ? (categoryNameById.get(id) ?? "Unknown") : "Verbs (Conjugation)";
+    const needsPractice = needsPracticeResult.rows.map((r) => {
+      const text = r.question ?? "";
+      const trimmed = text.length > 120 ? text.slice(0, 117) + "…" : text;
+      const name = r.category_id !== null
+        ? (r.category_name ?? "General")
+        : "Verbs";
       return {
-        categoryId: id,
+        id: Number(r.id),
+        question: trimmed,
+        type: r.type as QuestionType,
         categoryName: name,
-        totalAnswers: agg.totalAnswers,
-        totalCorrect: agg.totalCorrect,
-        totalIncorrect: agg.totalAnswers - agg.totalCorrect,
-        attemptedQuestions: agg.attempted,
-        totalQuestions: agg.total,
+        timesAnswered: Number(r.times_answered),
+        timesCorrect: Number(r.times_correct),
+        streak: Number(r.max_streak),
+        accuracy: Number(r.accuracy),
       };
-    }).sort((a, b) => b.totalAnswers - a.totalAnswers || a.categoryName.localeCompare(b.categoryName));
-
-    needsPracticeCandidates.sort((a, b) => {
-      if (a.accuracy !== b.accuracy) return a.accuracy - b.accuracy;
-      return b.timesAnswered - a.timesAnswered;
     });
-    const needsPractice = needsPracticeCandidates.slice(0, 10);
 
     return {
       summary: {
