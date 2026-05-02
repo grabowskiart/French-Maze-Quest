@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, varchar, jsonb, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -69,6 +69,7 @@ export const questions = pgTable("questions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   uniqueQuestion: uniqueIndex("questions_unique_idx").on(table.question, table.type, table.correctAnswer),
+  isActiveIdx: index("questions_is_active_idx").on(table.isActive),
 }));
 
 export const questionStates = pgTable("question_states", {
@@ -84,6 +85,10 @@ export const questionStates = pgTable("question_states", {
   uniqueQuestionProfile: uniqueIndex("question_states_question_profile_idx").on(
     table.questionId,
     table.profileId,
+  ),
+  profileLastSeenIdx: index("question_states_profile_last_seen_idx").on(
+    table.profileId,
+    table.lastSeen,
   ),
 }));
 

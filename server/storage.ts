@@ -70,7 +70,6 @@ function toPublicQuestion(question: Question): PublicQuestion {
 export class DatabaseStorage implements IStorage {
   async getNextQuestion(profileId: string | null = null): Promise<PublicQuestion> {
     const settings = await this.getSettings();
-    const now = new Date();
 
     // Resolve default category / pack lists in parallel when settings don't
     // provide explicit selections — saves a round trip on every question fetch.
@@ -93,7 +92,38 @@ export class DatabaseStorage implements IStorage {
 
     const enabledTenses = settings.enabledTenses ?? ["present", "imparfait", "passé_composé", "futur"];
 
-    const dbQuestions = await db.select()
+    // Push the spaced-repetition scoring into a single SQL query so we don't
+    // have to ship every question + state row to the app and score in JS.
+    // The DB computes the score per row, sorts by (in_cooldown, score) and
+    // streams back just the winner, keeping latency flat as the bank grows.
+    const minutesSinceLastSeen = sql<number>`EXTRACT(EPOCH FROM (now() - ${questionStates.lastSeen})) / 60`;
+
+    const inCooldownExpr = sql<boolean>`(
+      ${questionStates.lastSeen} IS NOT NULL
+      AND ${questionStates.lastSeen} > now() - interval '60 seconds'
+    )`;
+
+    // Mirrors the previous JS scoring formula exactly.
+    const scoreExpr = sql<number>`(
+      100
+      - COALESCE(${questionStates.streak}, 0) * 20
+      + CASE
+          WHEN ${questionStates.lastSeen} IS NULL THEN 80
+          WHEN ${minutesSinceLastSeen} < 2 THEN -150
+          WHEN ${minutesSinceLastSeen} < 5 THEN -80
+          WHEN ${minutesSinceLastSeen} < 10 THEN -40
+          ELSE LEAST(${minutesSinceLastSeen} / 60 * 10, 50)
+        END
+      + (3 - ${questions.difficulty}) * 10
+      + random() * 100
+    )`;
+
+    const [row] = await db
+      .select({
+        question: questions,
+        state: questionStates,
+        categoryName: categories.displayName,
+      })
       .from(questions)
       .leftJoin(
         questionStates,
@@ -106,13 +136,13 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(questions.isActive, true),
-          settings.enabledQuestionTypes?.length 
+          settings.enabledQuestionTypes?.length
             ? inArray(questions.type, settings.enabledQuestionTypes)
             : sql`true`,
           settings.enabledProficiencyLevels?.length
             ? inArray(questions.proficiencyLevel, settings.enabledProficiencyLevels)
             : sql`true`,
-          enabledCategories.length 
+          enabledCategories.length
             ? or(inArray(questions.categoryId, enabledCategories), isNull(questions.categoryId))
             : sql`true`,
           or(
@@ -120,7 +150,7 @@ export class DatabaseStorage implements IStorage {
             sql`${questions.conjugationPackId} IS NULL`,
             enabledConjPacks.length
               ? inArray(questions.conjugationPackId, enabledConjPacks)
-              : sql`true`
+              : sql`true`,
           ),
           // Filter conjugation questions by enabled tenses; non-conjugation rows pass through
           or(
@@ -128,72 +158,25 @@ export class DatabaseStorage implements IStorage {
             enabledTenses.length
               ? or(
                   inArray(questions.tense, enabledTenses),
-                  isNull(questions.tense)
+                  isNull(questions.tense),
                 )
-              : sql`false`
-          )
-        )
-      );
+              : sql`false`,
+          ),
+        ),
+      )
+      // Prefer non-cooldown rows (in_cooldown=false sorts before true), then
+      // by descending score. If only cooldown rows exist, the best one is
+      // still returned — matching the prior JS fallback behavior.
+      .orderBy(asc(inCooldownExpr), desc(scoreExpr))
+      .limit(1);
 
-    if (dbQuestions.length === 0) {
+    if (!row) {
       return toPublicQuestion(questionBank[Math.floor(Math.random() * questionBank.length)]);
     }
 
-    // First, separate questions into "available" (not seen in last 30 seconds) and "cooldown"
-    const cooldownMs = 60 * 1000; // 60 seconds hard cooldown
-    const availableQuestions: typeof dbQuestions = [];
-    const cooldownQuestions: typeof dbQuestions = [];
-    
-    for (const row of dbQuestions) {
-      const lastSeen = row.question_states?.lastSeen;
-      if (lastSeen && (now.getTime() - lastSeen.getTime()) < cooldownMs) {
-        cooldownQuestions.push(row);
-      } else {
-        availableQuestions.push(row);
-      }
-    }
-    
-    // Use available questions if we have any, otherwise fall back to cooldown questions
-    const questionsToScore = availableQuestions.length > 0 ? availableQuestions : cooldownQuestions;
-    
-    const scoredQuestions = questionsToScore.map(row => {
-      const q = row.questions;
-      const state = row.question_states;
-      let score = 100;
-      
-      // Penalize based on streak (mastered questions should appear less)
-      score -= (state?.streak || 0) * 20;
-      
-      if (state?.lastSeen) {
-        const minutesSinceLastSeen = (now.getTime() - state.lastSeen.getTime()) / (1000 * 60);
-        if (minutesSinceLastSeen < 2) {
-          score -= 150;
-        } else if (minutesSinceLastSeen < 5) {
-          score -= 80;
-        } else if (minutesSinceLastSeen < 10) {
-          score -= 40;
-        } else {
-          // Bonus for not recently seen
-          const hoursSinceLastSeen = minutesSinceLastSeen / 60;
-          score += Math.min(hoursSinceLastSeen * 10, 50);
-        }
-      } else {
-        // Never seen questions get priority
-        score += 80;
-      }
-      
-      score += (3 - q.difficulty) * 10;
-      // Larger random factor to ensure variety
-      score += Math.random() * 100;
-      
-      return { 
-        question: dbQuestionToQuestion(q, state, row.categories?.displayName),
-        score 
-      };
-    });
-
-    scoredQuestions.sort((a, b) => b.score - a.score);
-    return toPublicQuestion(scoredQuestions[0].question);
+    return toPublicQuestion(
+      dbQuestionToQuestion(row.question, row.state, row.categoryName ?? undefined),
+    );
   }
 
   async submitAnswer(questionId: string, answer: string, profileId: string | null = null): Promise<{
