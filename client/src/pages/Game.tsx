@@ -15,7 +15,7 @@ import { BOSS_CREATURE, CREATURE_ROSTER, scaleCreatureMaxHp, getCreatureDifficul
 import { Badge } from "@/components/ui/badge";
 import { Star } from "lucide-react";
 import { playMoveSound, playEncounterSound, playPickupSound, playHitSound, playLoseLifeSound } from "@/lib/sounds";
-import { PickupIcon } from "@/components/game/PickupIcon";
+import { PickupIcon, type PickupMarker } from "@/components/game/PickupIcon";
 import {
   clearSavedRun,
   getActiveProfileId,
@@ -566,9 +566,14 @@ export default function Game() {
   const isPickupModalOpen = Boolean(pickupModal);
   const isDefeatedCreatureModalOpen = Boolean(defeatedCreatureModal);
 
-  const pickupMarkers = Object.fromEntries(
-    Object.entries(pickups).map(([key, value]) => [key, value.kind])
-  ) as Record<string, "heart" | "potion" | "weapon">;
+  const pickupMarkers: Record<string, PickupMarker> = Object.fromEntries(
+    Object.entries(pickups).map(([key, value]) => [
+      key,
+      value.kind === "weapon"
+        ? { kind: value.kind, weaponName: value.weapon.name }
+        : { kind: value.kind },
+    ])
+  );
 
   const handleStartRevealQuestion = () => {
     if (!gameState || gameState.gamePhase !== "exploring" || isFeedbackModalOpen || isRevealQuestionActive || isRevealQuestionMode || isDeathModalOpen || isPickupModalOpen || isDefeatedCreatureModalOpen) return;
@@ -801,7 +806,7 @@ export default function Game() {
             <span>Potions: {potions}</span>
           </div>
           <div className="flex items-start gap-2 font-semibold" data-testid="status-weapon">
-            <PickupIcon kind="weapon" size="md" className="mt-0.5" />
+            <PickupIcon kind="weapon" weaponName={equippedWeapon.name} size="md" className="mt-0.5" />
             <div className="flex-1">
               <div>
                 <span data-testid="text-weapon-name">{equippedWeapon.name}</span>
@@ -834,7 +839,7 @@ export default function Game() {
               <span>Inventory:</span>
               {weaponInventory.map((w, idx) => (
                 <span key={`${w.name}-${idx}`} className="inline-flex items-center gap-1" data-testid={`inventory-weapon-${idx}`}>
-                  <PickupIcon kind="weapon" size="sm" />
+                  <PickupIcon kind="weapon" weaponName={w.name} size="sm" />
                   <span>{w.name}({w.damage})</span>
                 </span>
               ))}
@@ -844,7 +849,7 @@ export default function Game() {
 
         {weaponChoice && (
           <div className="mb-4 rounded-lg border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-            <PickupIcon kind="weapon" size="lg" />
+            <PickupIcon kind="weapon" weaponName={weaponChoice.weapon.name} size="lg" />
             <div className="flex-1">
               <p>Found <strong>{weaponChoice.weapon.name}</strong> (Damage {weaponChoice.weapon.damage}). Pick it up?</p>
               <p className="text-xs text-muted-foreground" data-testid="text-weapon-choice-description">{weaponChoice.weapon.description}</p>
@@ -1047,6 +1052,7 @@ export default function Game() {
           sessionTime={sessionTime}
           streak={maxStreak}
           showDragonVictoryScene={bossDefeated}
+          equippedWeapon={equippedWeapon}
           onPlayAgain={startGame}
         />
       )}

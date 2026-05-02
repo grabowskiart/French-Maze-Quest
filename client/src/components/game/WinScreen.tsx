@@ -3,6 +3,7 @@ import { Trophy, Star, Clock, Target, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import confetti from "canvas-confetti";
+import { getWeaponImage } from "./PickupIcon";
 
 interface WinScreenProps {
   questionsAnswered: number;
@@ -11,6 +12,7 @@ interface WinScreenProps {
   streak: number;
   onPlayAgain: () => void;
   showDragonVictoryScene?: boolean;
+  equippedWeapon?: { name: string; damage: number };
 }
 
 export function WinScreen({
@@ -20,7 +22,9 @@ export function WinScreen({
   streak,
   onPlayAgain,
   showDragonVictoryScene = false,
+  equippedWeapon,
 }: WinScreenProps) {
+  const weaponImage = equippedWeapon ? getWeaponImage(equippedWeapon.name) : null;
   const accuracy = questionsAnswered > 0 ? Math.round((correctAnswers / questionsAnswered) * 100) : 0;
 
   useEffect(() => {
@@ -89,6 +93,25 @@ export function WinScreen({
                   alt="Chest of gold, fallen dragon, and dungeon exit"
                   className="h-[200px] sm:h-[240px] lg:h-[260px] w-full object-contain bg-black/50"
                 />
+              </div>
+            )}
+            {equippedWeapon && weaponImage && (
+              <div
+                className="w-full flex items-center gap-3 rounded-xl border border-border bg-card/60 p-3"
+                data-testid="win-equipped-weapon"
+              >
+                <img
+                  src={weaponImage}
+                  alt={equippedWeapon.name}
+                  className="h-14 w-14 object-contain shrink-0 drop-shadow"
+                />
+                <div className="text-left">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Final weapon</p>
+                  <p className="font-display text-lg font-bold text-foreground" data-testid="text-win-weapon-name">
+                    {equippedWeapon.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Damage {equippedWeapon.damage}</p>
+                </div>
               </div>
             )}
             <div className="grid grid-cols-2 gap-4 w-full pt-4">

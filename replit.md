@@ -107,6 +107,7 @@ This is an educational game that combines French language learning with maze exp
 - **Colors:** Kid-friendly playful palette with purple primary, pink secondary, teal accent
 - **Dark mode:** Fully supported with toggle in header
 - **Animations:** Confetti on correct answers and winning, smooth transitions
+- **Game art:** Painted dark-fantasy assets live under `client/public/images/`. Creature art under `creatures/`, maze textures and overlay sprites (wall, path, entrance/exit portals, player, heart, potion) under `maze/`, and per-weapon icons (one per `WEAPON_POOL` entry, looked up by name via `getWeaponImage` in `client/src/components/game/PickupIcon.tsx`) under `weapons/`.
 
 ## Running the Application
 

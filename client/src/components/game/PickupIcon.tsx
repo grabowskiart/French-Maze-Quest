@@ -1,55 +1,82 @@
 export type PickupKind = "heart" | "potion" | "weapon";
 
+export type PickupMarker = { kind: PickupKind; weaponName?: string };
+
 interface PickupVisual {
-  icon: string;
   label: string;
-  badgeClass: string;
+  fallbackEmoji: string;
 }
 
 const PICKUP_VISUALS: Record<PickupKind, PickupVisual> = {
-  heart: {
-    icon: "❤",
-    label: "Heart",
-    badgeClass: "bg-red-500/95 text-white",
-  },
-  potion: {
-    icon: "🧪",
-    label: "Potion",
-    badgeClass: "bg-cyan-500/90 text-white",
-  },
-  weapon: {
-    icon: "⚔️",
-    label: "Weapon",
-    badgeClass: "bg-amber-500/90 text-zinc-950",
-  },
+  heart: { label: "Heart", fallbackEmoji: "❤" },
+  potion: { label: "Potion", fallbackEmoji: "🧪" },
+  weapon: { label: "Weapon", fallbackEmoji: "⚔️" },
+};
+
+const PICKUP_IMAGE: Record<PickupKind, string> = {
+  heart: "/images/maze/pickup-heart.png",
+  potion: "/images/maze/pickup-potion.png",
+  weapon: "/images/weapons/knights-blade.png",
+};
+
+const WEAPON_IMAGE_BY_NAME: Record<string, string> = {
+  "Rusty Sword": "/images/weapons/rusty-sword.png",
+  "Knight's Blade": "/images/weapons/knights-blade.png",
+  "War Axe": "/images/weapons/war-axe.png",
+  "Spiked Mace": "/images/weapons/spiked-mace.png",
+  "Moon Lance": "/images/weapons/moon-lance.png",
+  "Flame Saber": "/images/weapons/flame-saber.png",
+  "Dragonfang Spear": "/images/weapons/dragonfang-spear.png",
 };
 
 export function getPickupVisual(kind: PickupKind): PickupVisual {
   return PICKUP_VISUALS[kind];
 }
 
+export function getWeaponImage(name: string): string | null {
+  return WEAPON_IMAGE_BY_NAME[name] ?? null;
+}
+
+export function getPickupImage(kind: PickupKind, weaponName?: string): string {
+  if (kind === "weapon" && weaponName) {
+    return getWeaponImage(weaponName) ?? PICKUP_IMAGE.weapon;
+  }
+  return PICKUP_IMAGE[kind];
+}
+
 interface PickupIconProps {
   kind: PickupKind;
+  weaponName?: string;
   size?: "sm" | "md" | "lg";
   className?: string;
 }
 
-const SIZE_CLASSES: Record<NonNullable<PickupIconProps["size"]>, string> = {
-  sm: "h-3.5 w-3.5 text-[9px]",
-  md: "h-6 w-6 text-sm",
-  lg: "h-8 w-8 text-base",
+const SIZE_PX: Record<NonNullable<PickupIconProps["size"]>, number> = {
+  sm: 20,
+  md: 28,
+  lg: 56,
 };
 
-export function PickupIcon({ kind, size = "md", className = "" }: PickupIconProps) {
+export function PickupIcon({
+  kind,
+  weaponName,
+  size = "md",
+  className = "",
+}: PickupIconProps) {
   const visual = getPickupVisual(kind);
+  const src = getPickupImage(kind, weaponName);
+  const px = SIZE_PX[size];
+  const label = kind === "weapon" && weaponName ? weaponName : visual.label;
   return (
-    <span
-      className={`inline-flex items-center justify-center rounded-full leading-none shadow-sm shrink-0 ${SIZE_CLASSES[size]} ${visual.badgeClass} ${className}`}
-      title={visual.label}
-      aria-label={visual.label}
+    <img
+      src={src}
+      alt={label}
+      title={label}
+      width={px}
+      height={px}
+      style={{ width: px, height: px }}
+      className={`object-contain shrink-0 drop-shadow-sm ${className}`}
       data-testid={`icon-pickup-${kind}`}
-    >
-      {visual.icon}
-    </span>
+    />
   );
 }

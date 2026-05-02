@@ -1,0 +1,86 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "X7jhm11qR2AODlJ_auoA1"
+uri = "file://client/public/images/weapons/rusty-sword.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "cOaNEBo4f3XDugdpxhWaK"
+uri = "file://client/public/images/weapons/knights-blade.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "WqH10wWth5_fBdBSq00BX"
+uri = "file://client/public/images/weapons/war-axe.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "-O1YPD4iyouJPYcmYdHvf"
+uri = "file://client/public/images/weapons/spiked-mace.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "QiO4NguU0_BJwjTsOBZzC"
+uri = "file://client/public/images/weapons/moon-lance.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "nQBc4scU5B8c8YOpXG8zC"
+uri = "file://client/public/images/weapons/flame-saber.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "C8lkn5USGA8NQDmkkVSmX"
+uri = "file://client/public/images/weapons/dragonfang-spear.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "1fQcsphrFdClN7iee2dnJ"
+uri = "file://client/public/images/maze/wall-texture.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "fMihCefj1tdVIOb_Ur5VQ"
+uri = "file://client/public/images/maze/path-texture.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "IVQIiKboNuzMltJhOeOuB"
+uri = "file://client/public/images/maze/entrance-portal.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "LkWV0_44ZNFhFeM9LwZeM"
+uri = "file://client/public/images/maze/exit-portal.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "_TQSv8ndNvWdTWJWXwE0F"
+uri = "file://client/public/images/maze/player-hero.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "4urmYcJqgP9niDeW0f9FJ"
+uri = "file://client/public/images/maze/pickup-heart.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "oUSIi-hp9UFTDJ4YHZRaz"
+uri = "file://client/public/images/maze/pickup-potion.png"
+type = "image"
+title = "generated_image"
