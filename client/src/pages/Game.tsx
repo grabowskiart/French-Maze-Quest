@@ -11,7 +11,7 @@ import { generateMaze, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
-import { BOSS_CREATURE, CREATURE_ROSTER, scaleCreatureMaxHp, getCreatureDifficultyBadge, type ActiveEncounter, type DifficultyBadge } from "@/lib/creatures";
+import { BOSS_CREATURE, CREATURE_ROSTER, scaleCreatureMaxHp, getCreatureDifficultyBadge, pickRandomTaunt, type ActiveEncounter, type DifficultyBadge } from "@/lib/creatures";
 import { Badge } from "@/components/ui/badge";
 import { Star } from "lucide-react";
 import { playMoveSound, playEncounterSound, playPickupSound, playHitSound, playLoseLifeSound, playDeathSound } from "@/lib/sounds";
@@ -407,7 +407,11 @@ export default function Game() {
     setPathHistory(saved.pathHistory.length ? saved.pathHistory : [restoredGameState.playerPosition]);
     setStepsSinceEncounter(saved.stepsSinceEncounter);
     setNextEncounterAt(saved.nextEncounterAt);
-    setEncounter(saved.encounter);
+    setEncounter(
+      saved.encounter
+        ? { ...saved.encounter, currentTaunt: saved.encounter.currentTaunt ?? "" }
+        : null,
+    );
     setPickups(saved.pickups as Record<string, Pickup>);
     setPotions(saved.potions);
     setWeaponInventory(saved.weaponInventory);
@@ -648,8 +652,9 @@ export default function Game() {
           remainingSteps: 0,
         });
       } else {
-        setEncounter({ ...BOSS_CREATURE, hp: BOSS_CREATURE.maxHp, isBoss: true });
-        setCombatMessage("The Dragon Warden blocks the treasure! Defeat it to claim the chest of gold.");
+        const bossTaunt = pickRandomTaunt(BOSS_CREATURE);
+        setEncounter({ ...BOSS_CREATURE, hp: BOSS_CREATURE.maxHp, isBoss: true, currentTaunt: bossTaunt });
+        setCombatMessage(`The Dragon Warden blocks the treasure! "${bossTaunt}"`);
         setGameState({
           ...gameState,
           maze: updatedMaze,
@@ -704,8 +709,9 @@ export default function Game() {
     if (movedSteps >= nextEncounterAt) {
       const next = CREATURE_ROSTER[Math.floor(Math.random() * CREATURE_ROSTER.length)];
       const scaledMaxHp = scaleCreatureMaxHp(next, newPosition, gameState.maze.entrance, gameState.maze.exit);
-      setEncounter({ ...next, maxHp: scaledMaxHp, hp: scaledMaxHp, isBoss: false });
-      setCombatMessage(`A ${next.name} appears! Answer French questions to defeat it.`);
+      const taunt = pickRandomTaunt(next);
+      setEncounter({ ...next, maxHp: scaledMaxHp, hp: scaledMaxHp, isBoss: false, currentTaunt: taunt });
+      setCombatMessage(`A ${next.name} appears! "${taunt}"`);
       setGameState({
         ...gameState,
         maze: updatedMaze,
@@ -959,6 +965,14 @@ export default function Game() {
                     })()}
                   </div>
                   <p className="text-muted-foreground">Defeat it by answering French questions correctly.</p>
+                  {encounter.currentTaunt && (
+                    <p
+                      className="mt-2 italic text-foreground"
+                      data-testid={`text-taunt-${encounter.id}`}
+                    >
+                      “{encounter.currentTaunt}”
+                    </p>
+                  )}
                   <div className="mt-3 overflow-hidden rounded-lg border border-border bg-black/50">
                     <img
                       src={encounter.image}
