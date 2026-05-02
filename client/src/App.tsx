@@ -7,12 +7,14 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import NotFound from "@/pages/not-found";
 import Game from "@/pages/Game";
 import Dashboard from "@/pages/Dashboard";
+import Bestiary from "@/pages/Bestiary";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Game} />
       <Route path="/dashboard" component={Dashboard} />
+      <Route path="/bestiary" component={Bestiary} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,7 +1,8 @@
 import { useEffect } from "react";
-import { Trophy, Star, Clock, Target, RotateCcw } from "lucide-react";
+import { Trophy, Star, Clock, Target, RotateCcw, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Link } from "wouter";
 import confetti from "canvas-confetti";
 import { getWeaponImage } from "./PickupIcon";
 
@@ -164,6 +165,17 @@ export function WinScreen({
               <RotateCcw className="w-5 h-5 mr-2" />
               Play Again
             </Button>
+
+            <Link href="/bestiary" className="w-full">
+              <Button
+                variant="outline"
+                className="w-full h-12 text-base font-display"
+                data-testid="button-win-open-bestiary"
+              >
+                <BookOpen className="w-5 h-5 mr-2" />
+                View Bestiary
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>

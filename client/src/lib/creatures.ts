@@ -242,18 +242,51 @@ export function pickRandomTaunt(template: CreatureTemplate): string {
 
 type Pos = { x: number; y: number };
 
+function computeProgress(playerPos: Pos, entrance: Pos, exit: Pos): number {
+  const totalDistance = Math.abs(entrance.x - exit.x) + Math.abs(entrance.y - exit.y);
+  if (totalDistance <= 0) return 0;
+  const remaining = Math.abs(playerPos.x - exit.x) + Math.abs(playerPos.y - exit.y);
+  return Math.max(0, Math.min(1, 1 - remaining / totalDistance));
+}
+
 export function scaleCreatureMaxHp(
   template: CreatureTemplate,
   playerPos: Pos,
   entrance: Pos,
   exit: Pos,
 ): number {
-  const totalDistance = Math.abs(entrance.x - exit.x) + Math.abs(entrance.y - exit.y);
-  if (totalDistance <= 0) return template.maxHp;
-  const remaining = Math.abs(playerPos.x - exit.x) + Math.abs(playerPos.y - exit.y);
-  const progress = Math.max(0, Math.min(1, 1 - remaining / totalDistance));
+  const progress = computeProgress(playerPos, entrance, exit);
   const multiplier = 1 + progress;
   return Math.max(template.maxHp, Math.ceil(template.maxHp * multiplier));
+}
+
+const ROSTER_BY_HP = [...CREATURE_ROSTER].sort((a, b) => a.maxHp - b.maxHp);
+
+export function getProgressionBucket(progress: number): CreatureTemplate[] {
+  const total = ROSTER_BY_HP.length;
+  if (total === 0) return [];
+  const clamped = Math.max(0, Math.min(1, progress));
+  if (clamped < 1 / 3) {
+    return ROSTER_BY_HP.slice(0, Math.max(1, Math.ceil(total / 3)));
+  }
+  if (clamped < 2 / 3) {
+    const start = Math.floor(total / 3);
+    const end = Math.max(start + 1, Math.ceil((2 * total) / 3));
+    return ROSTER_BY_HP.slice(start, end);
+  }
+  const start = Math.min(total - 1, Math.floor((2 * total) / 3));
+  return ROSTER_BY_HP.slice(start);
+}
+
+export function pickCreatureForProgress(
+  playerPos: Pos,
+  entrance: Pos,
+  exit: Pos,
+): CreatureTemplate {
+  const progress = computeProgress(playerPos, entrance, exit);
+  const bucket = getProgressionBucket(progress);
+  const pool = bucket.length > 0 ? bucket : CREATURE_ROSTER;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 export type DifficultyTier = "tough" | "elite" | "champion";

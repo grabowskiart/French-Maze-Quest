@@ -11,7 +11,7 @@ import { generateMaze, updateVisibility } from "@/lib/mazeGenerator";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, Maze } from "@shared/schema";
-import { BOSS_CREATURE, CREATURE_ROSTER, scaleCreatureMaxHp, getCreatureDifficultyBadge, pickRandomTaunt, type ActiveEncounter, type DifficultyBadge } from "@/lib/creatures";
+import { BOSS_CREATURE, CREATURE_ROSTER, scaleCreatureMaxHp, getCreatureDifficultyBadge, pickRandomTaunt, pickCreatureForProgress, type ActiveEncounter, type DifficultyBadge } from "@/lib/creatures";
 import { Badge } from "@/components/ui/badge";
 import { Star } from "lucide-react";
 import { playMoveSound, playEncounterSound, playPickupSound, playHitSound, playLoseLifeSound, playDeathSound } from "@/lib/sounds";
@@ -235,6 +235,30 @@ export default function Game() {
     gcTime: 0,
   });
 
+  const recordDefeatMutation = useMutation({
+    mutationFn: async (creatureId: string) => {
+      const res = await apiRequest("POST", "/api/bestiary", {
+        creatureId,
+        profileId: activeProfileIdRef.current ?? undefined,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      const profileId = activeProfileIdRef.current;
+      const key = profileId ? ["/api/bestiary", profileId] : ["/api/bestiary"];
+      queryClient.invalidateQueries({ queryKey: key });
+    },
+  });
+
+  const recordCreatureDefeated = useCallback(
+    (creatureId: string) => {
+      recordDefeatMutation.mutate(creatureId);
+    },
+    [recordDefeatMutation],
+  );
+  const recordCreatureDefeatedRef = useRef(recordCreatureDefeated);
+  recordCreatureDefeatedRef.current = recordCreatureDefeated;
+
   const submitAnswerMutation = useMutation({
     mutationFn: async ({ questionId, answer }: { questionId: string; answer: string }) => {
       const res = await apiRequest("POST", "/api/questions/answer", {
@@ -288,6 +312,7 @@ export default function Game() {
           const defeated = encounterRef.current;
           setEncounter(null);
           setDefeatedCreatureModal({ name: defeated.name, image: defeated.defeatedImage, isBoss: defeated.isBoss });
+          recordCreatureDefeatedRef.current(defeated.id);
           if (defeated.isBoss) {
             setBossDefeated(true);
             setGameState((prev) => prev ? { ...prev, gamePhase: "won" } : prev);
@@ -611,6 +636,7 @@ export default function Game() {
         setEncounter(null);
         setBossDefeated(true);
         setDefeatedCreatureModal({ name: encounter.name, image: encounter.defeatedImage, isBoss: true });
+        recordCreatureDefeatedRef.current(encounter.id);
         setGameState({ ...gameState, gamePhase: "won" });
         setCombatMessage("The dragon collapses! The treasure is yours.");
       } else {
@@ -623,6 +649,7 @@ export default function Game() {
 
     setEncounter(null);
     setDefeatedCreatureModal({ name: encounter.name, image: encounter.defeatedImage, isBoss: false });
+    recordCreatureDefeatedRef.current(encounter.id);
     setGameState({ ...gameState, gamePhase: "exploring" });
     setStepsSinceEncounter(0);
     setNextEncounterAt(randomInt(3, 5));
@@ -707,7 +734,7 @@ export default function Game() {
     }
 
     if (movedSteps >= nextEncounterAt) {
-      const next = CREATURE_ROSTER[Math.floor(Math.random() * CREATURE_ROSTER.length)];
+      const next = pickCreatureForProgress(newPosition, gameState.maze.entrance, gameState.maze.exit);
       const scaledMaxHp = scaleCreatureMaxHp(next, newPosition, gameState.maze.entrance, gameState.maze.exit);
       const taunt = pickRandomTaunt(next);
       setEncounter({ ...next, maxHp: scaledMaxHp, hp: scaledMaxHp, isBoss: false, currentTaunt: taunt });

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { answerSchema, profileIdSchema, resetStatsSchema, updateGameSettingsSchema } from "@shared/schema";
+import { answerSchema, profileIdSchema, recordDefeatSchema, resetStatsSchema, updateGameSettingsSchema } from "@shared/schema";
 import { z } from "zod";
 import { generateAndSaveQuestions, generateConjugationQuestions, generateConjugationPacks, generateConjugationPackForVerb } from "./questionGenerator";
 
@@ -205,6 +205,35 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ error: "Failed to fetch statistics" });
+    }
+  });
+
+  app.get("/api/bestiary/:profileId?", async (req, res) => {
+    try {
+      const parsed = parseProfileIdParam(req.params.profileId);
+      if (!parsed.ok) {
+        return res.status(400).json({ error: "Invalid profileId" });
+      }
+      const ids = await storage.getDefeatedCreatures(parsed.profileId);
+      res.json({ defeatedCreatureIds: ids });
+    } catch (error) {
+      console.error("Error fetching bestiary:", error);
+      res.status(500).json({ error: "Failed to fetch bestiary" });
+    }
+  });
+
+  app.post("/api/bestiary", async (req, res) => {
+    try {
+      const parsed = recordDefeatSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid request body" });
+      }
+      const { creatureId, profileId } = parsed.data;
+      await storage.recordDefeatedCreature(creatureId, profileId ?? null);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error recording defeated creature:", error);
+      res.status(500).json({ error: "Failed to record defeated creature" });
     }
   });
 

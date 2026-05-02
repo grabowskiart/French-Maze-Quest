@@ -1,10 +1,10 @@
 import type { Question, PublicQuestion, QuestionType, ProficiencyLevel, Category, ConjugationPack, GameSettings, DbQuestion, QuestionState as DbQuestionState, StatsResponse } from "@shared/schema";
-import { categories, conjugationPacks, questions, questionStates, gameSettings } from "@shared/schema";
+import { categories, conjugationPacks, questions, questionStates, gameSettings, defeatedCreatures } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, inArray, sql, desc, asc, or, isNull } from "drizzle-orm";
+import { eq, and, inArray, sql, desc, asc, or, isNull, type Column } from "drizzle-orm";
 import { questionBank, checkAnswer } from "./questionBank";
 
-function profileMatches(column: typeof questionStates.profileId, profileId: string | null) {
+function profileMatches(column: Column, profileId: string | null) {
   return profileId === null ? isNull(column) : eq(column, profileId);
 }
 
@@ -33,6 +33,8 @@ export interface IStorage {
   toggleConjugationPack(packId: number, isActive: boolean): Promise<void>;
   getStats(profileId?: string): Promise<StatsResponse>;
   resetStats(profileId?: string): Promise<void>;
+  getDefeatedCreatures(profileId?: string | null): Promise<string[]>;
+  recordDefeatedCreature(creatureId: string, profileId?: string | null): Promise<void>;
 }
 
 function dbQuestionToQuestion(dbQ: DbQuestion, state?: DbQuestionState | null, categoryName?: string): Question {
@@ -467,14 +469,33 @@ export class DatabaseStorage implements IStorage {
       await update;
     }
   }
+
+  async getDefeatedCreatures(profileId: string | null = null): Promise<string[]> {
+    const rows = await db
+      .select({ creatureId: defeatedCreatures.creatureId })
+      .from(defeatedCreatures)
+      .where(profileMatches(defeatedCreatures.profileId, profileId));
+    return rows.map((r) => r.creatureId);
+  }
+
+  async recordDefeatedCreature(creatureId: string, profileId: string | null = null): Promise<void> {
+    await db
+      .insert(defeatedCreatures)
+      .values({ creatureId, profileId })
+      .onConflictDoNothing({
+        target: [defeatedCreatures.profileId, defeatedCreatures.creatureId],
+      });
+  }
 }
 
 export class MemStorage implements IStorage {
   private questionStates: Map<string, QuestionStateMap>;
+  private defeatedByProfile: Map<string, Set<string>>;
 
   constructor() {
     this.questionStates = new Map();
-    
+    this.defeatedByProfile = new Map();
+
     questionBank.forEach((q) => {
       this.questionStates.set(q.id, { streak: 0, lastSeen: null });
     });
@@ -589,6 +610,22 @@ export class MemStorage implements IStorage {
       byCategory: [],
       needsPractice: [],
     };
+  }
+
+  async getDefeatedCreatures(profileId: string | null = null): Promise<string[]> {
+    const key = profileId ?? "__null__";
+    const set = this.defeatedByProfile.get(key);
+    return set ? Array.from(set) : [];
+  }
+
+  async recordDefeatedCreature(creatureId: string, profileId: string | null = null): Promise<void> {
+    const key = profileId ?? "__null__";
+    let set = this.defeatedByProfile.get(key);
+    if (!set) {
+      set = new Set();
+      this.defeatedByProfile.set(key, set);
+    }
+    set.add(creatureId);
   }
 }
 

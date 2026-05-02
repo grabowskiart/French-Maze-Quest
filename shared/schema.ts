@@ -116,6 +116,23 @@ export const gameSettings = pgTable("game_settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const defeatedCreatures = pgTable("defeated_creatures", {
+  id: serial("id").primaryKey(),
+  profileId: varchar("profile_id", { length: 64 }),
+  creatureId: varchar("creature_id", { length: 100 }).notNull(),
+  defeatedAt: timestamp("defeated_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueProfileCreature: uniqueIndex("defeated_creatures_profile_creature_idx").on(
+    table.profileId,
+    table.creatureId,
+  ),
+  profileIdx: index("defeated_creatures_profile_idx").on(table.profileId),
+}));
+
+export const insertDefeatedCreatureSchema = createInsertSchema(defeatedCreatures).omit({ id: true, defeatedAt: true });
+export type DefeatedCreature = typeof defeatedCreatures.$inferSelect;
+export type InsertDefeatedCreature = z.infer<typeof insertDefeatedCreatureSchema>;
+
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true, createdAt: true });
 export const insertConjugationPackSchema = createInsertSchema(conjugationPacks).omit({ id: true, createdAt: true });
 export const insertQuestionSchema = createInsertSchema(questions).omit({ id: true, createdAt: true });
@@ -215,6 +232,12 @@ export const profileIdSchema = z
   .min(1)
   .max(64)
   .regex(/^[A-Za-z0-9_-]+$/, "Invalid profile id");
+
+export const recordDefeatSchema = z.object({
+  creatureId: z.string().trim().min(1).max(100),
+  profileId: profileIdSchema.optional(),
+});
+export type RecordDefeatSubmission = z.infer<typeof recordDefeatSchema>;
 
 export const answerSchema = z.object({
   questionId: z.string(),
