@@ -71,14 +71,25 @@ export class DatabaseStorage implements IStorage {
   async getNextQuestion(profileId: string | null = null): Promise<PublicQuestion> {
     const settings = await this.getSettings();
     const now = new Date();
-    
-    const enabledCategories = settings.enabledCategoryIds?.length 
-      ? settings.enabledCategoryIds 
-      : (await db.select({ id: categories.id }).from(categories).where(eq(categories.isActive, true))).map(c => c.id);
-    
-    const enabledConjPacks = settings.enabledConjugationPackIds?.length
-      ? settings.enabledConjugationPackIds
-      : (await db.select({ id: conjugationPacks.id }).from(conjugationPacks).where(eq(conjugationPacks.isActive, true))).map(p => p.id);
+
+    // Resolve default category / pack lists in parallel when settings don't
+    // provide explicit selections — saves a round trip on every question fetch.
+    const [enabledCategories, enabledConjPacks] = await Promise.all([
+      settings.enabledCategoryIds?.length
+        ? Promise.resolve(settings.enabledCategoryIds)
+        : db
+            .select({ id: categories.id })
+            .from(categories)
+            .where(eq(categories.isActive, true))
+            .then((rows) => rows.map((c) => c.id)),
+      settings.enabledConjugationPackIds?.length
+        ? Promise.resolve(settings.enabledConjugationPackIds)
+        : db
+            .select({ id: conjugationPacks.id })
+            .from(conjugationPacks)
+            .where(eq(conjugationPacks.isActive, true))
+            .then((rows) => rows.map((p) => p.id)),
+    ]);
 
     const enabledTenses = settings.enabledTenses ?? ["present", "imparfait", "passé_composé", "futur"];
 
@@ -301,20 +312,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getStats(profileId?: string): Promise<StatsResponse> {
-    const allCategories = await db.select().from(categories);
-    const categoryNameById = new Map<number, string>();
-    for (const c of allCategories) categoryNameById.set(c.id, c.displayName);
-
-    const activeQuestions = await db
-      .select({
-        questionId: questions.id,
-        questionText: questions.question,
-        type: questions.type,
-        categoryId: questions.categoryId,
-      })
-      .from(questions)
-      .where(eq(questions.isActive, true));
-
+    // Three independent SELECTs — fire them concurrently instead of serially.
     const stateRowsQuery = db
       .select({
         questionId: questionStates.questionId,
@@ -324,9 +322,24 @@ export class DatabaseStorage implements IStorage {
       })
       .from(questionStates);
 
-    const stateRows = await (profileId
-      ? stateRowsQuery.where(eq(questionStates.profileId, profileId))
-      : stateRowsQuery);
+    const [allCategories, activeQuestions, stateRows] = await Promise.all([
+      db.select().from(categories),
+      db
+        .select({
+          questionId: questions.id,
+          questionText: questions.question,
+          type: questions.type,
+          categoryId: questions.categoryId,
+        })
+        .from(questions)
+        .where(eq(questions.isActive, true)),
+      profileId
+        ? stateRowsQuery.where(eq(questionStates.profileId, profileId))
+        : stateRowsQuery,
+    ]);
+
+    const categoryNameById = new Map<number, string>();
+    for (const c of allCategories) categoryNameById.set(c.id, c.displayName);
 
     type StateAgg = { timesAnswered: number; timesCorrect: number; streak: number };
     const stateByQuestionId = new Map<number, StateAgg>();

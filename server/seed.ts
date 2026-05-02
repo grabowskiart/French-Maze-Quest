@@ -142,13 +142,14 @@ async function seed() {
     const insertedCategories = await db.insert(categories).values(initialCategories).returning();
     
     const categoryMap = new Map(insertedCategories.map(c => [c.name, c.id]));
-    
+
     console.log("Adding questions from question bank...");
-    for (const q of questionBank) {
+    // Single bulk INSERT instead of one round trip per question — orders of
+    // magnitude faster on first-time database seeding.
+    const questionRows = questionBank.map((q) => {
       const categoryKey = categoryDisplayNameToKey[q.category] || "basics";
       const categoryId = categoryMap.get(categoryKey) || categoryMap.get("basics");
-      
-      await db.insert(questions).values({
+      return {
         type: q.type,
         question: q.question,
         correctAnswer: q.correctAnswer,
@@ -160,7 +161,10 @@ async function seed() {
         categoryId: categoryId,
         isGenerated: false,
         isActive: true,
-      });
+      };
+    });
+    if (questionRows.length > 0) {
+      await db.insert(questions).values(questionRows);
     }
     console.log(`Added ${questionBank.length} questions`);
   } else {

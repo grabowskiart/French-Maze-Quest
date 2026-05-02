@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { GameHeader } from "@/components/game/GameHeader";
@@ -453,12 +453,16 @@ export default function Game() {
     };
   };
 
+  // Persist on real gameplay state changes only — sessionTime ticks every
+  // second and is intentionally excluded so we don't serialize+write the
+  // entire save blob to localStorage 60 times per minute. The beforeunload /
+  // pagehide / visibilitychange handlers below flush a final snapshot that
+  // captures the up-to-date elapsed time when the player leaves the page.
   useEffect(() => {
     const snapshot = buildSnapshotRef.current?.();
     if (snapshot) persistSavedRun(activeProfileIdRef.current, snapshot);
   }, [
     gameState,
-    sessionTime,
     hearts,
     pathHistory,
     stepsSinceEncounter,
@@ -480,13 +484,19 @@ export default function Game() {
       const snapshot = buildSnapshotRef.current?.();
       if (snapshot) persistSavedRun(activeProfileIdRef.current, snapshot);
     };
+    // Only flush when the page is actually being hidden — not on refocus —
+    // so we don't double-write to localStorage every time the tab regains
+    // focus. beforeunload/pagehide already cover the unload path.
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
     window.addEventListener("beforeunload", flush);
     window.addEventListener("pagehide", flush);
-    document.addEventListener("visibilitychange", flush);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
       window.removeEventListener("beforeunload", flush);
       window.removeEventListener("pagehide", flush);
-      document.removeEventListener("visibilitychange", flush);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 
@@ -567,13 +577,17 @@ export default function Game() {
   const isPickupModalOpen = Boolean(pickupModal);
   const isDefeatedCreatureModalOpen = Boolean(defeatedCreatureModal);
 
-  const pickupMarkers: Record<string, PickupMarker> = Object.fromEntries(
-    Object.entries(pickups).map(([key, value]) => [
-      key,
-      value.kind === "weapon"
-        ? { kind: value.kind, weaponName: value.weapon.name }
-        : { kind: value.kind },
-    ])
+  const pickupMarkers = useMemo<Record<string, PickupMarker>>(
+    () =>
+      Object.fromEntries(
+        Object.entries(pickups).map(([key, value]) => [
+          key,
+          value.kind === "weapon"
+            ? { kind: value.kind, weaponName: value.weapon.name }
+            : { kind: value.kind },
+        ]),
+      ),
+    [pickups],
   );
 
   const handleStartRevealQuestion = () => {
