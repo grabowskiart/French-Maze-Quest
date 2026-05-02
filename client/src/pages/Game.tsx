@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { GameHeader } from "@/components/game/GameHeader";
+import { BestiaryButton } from "@/components/game/BestiaryButton";
 import { MazeGrid } from "@/components/game/MazeGrid";
 import { QuestionPanel } from "@/components/game/QuestionPanel";
 import { FeedbackModal } from "@/components/game/FeedbackModal";
@@ -888,7 +889,6 @@ export default function Game() {
         streak={gameState.streak}
         questionsAnswered={gameState.questionsAnswered}
         sessionTime={sessionTime}
-        activeProfileId={activeProfileId}
       />
 
       <main className="max-w-6xl mx-auto px-3 py-4 sm:px-4 sm:py-8">
@@ -910,6 +910,9 @@ export default function Game() {
               </div>
               <p className="text-xs text-muted-foreground font-normal" data-testid="text-weapon-description">{equippedWeapon.description}</p>
             </div>
+          </div>
+          <div className="pt-1">
+            <BestiaryButton activeProfileId={activeProfileId} />
           </div>
           <p className="text-muted-foreground">{combatMessage}</p>
           {gameState.gamePhase === "exploring" && (
