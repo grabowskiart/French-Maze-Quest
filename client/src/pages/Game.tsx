@@ -14,7 +14,7 @@ import type { GameState, PublicQuestion, AnswerResult, Position, GameSettings, M
 import { BOSS_CREATURE, CREATURE_ROSTER, scaleCreatureMaxHp, getCreatureDifficultyBadge, type ActiveEncounter, type DifficultyBadge } from "@/lib/creatures";
 import { Badge } from "@/components/ui/badge";
 import { Star } from "lucide-react";
-import { playMoveSound, playEncounterSound, playPickupSound, playHitSound, playLoseLifeSound } from "@/lib/sounds";
+import { playMoveSound, playEncounterSound, playPickupSound, playHitSound, playLoseLifeSound, playDeathSound } from "@/lib/sounds";
 import { PickupIcon, type PickupMarker } from "@/components/game/PickupIcon";
 import {
   clearSavedRun,
@@ -303,11 +303,11 @@ export default function Game() {
           refetchQuestion();
         }
       } else {
-        playLoseLifeSound();
         const nextHearts = heartsRef.current - 1;
         setHearts(nextHearts);
 
         if (nextHearts <= 0) {
+          playDeathSound();
           const history = pathHistoryRef.current;
           const stepsBackIndex = Math.max(0, history.length - 1 - 10);
           const respawnPosition = history[stepsBackIndex] ?? activeState.maze.entrance;

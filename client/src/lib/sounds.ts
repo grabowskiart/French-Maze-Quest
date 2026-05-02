@@ -303,3 +303,135 @@ export function playLoseLifeSound() {
   lfo.start(yelpStart);
   lfo.stop(yelpStart + yelpDur);
 }
+
+// Cinematic player death — used when the killing blow lands.
+// Sequence (about ~1.6s total):
+//   1) Massive killing impact (deep body thud + sharp crack + metallic shing)
+//   2) Long agonized cry that descends from mid to very low pitch with vibrato
+//   3) Dark descending minor chord (three detuned sawtooths pitch-bending down)
+//   4) Low ominous rumble underneath the chord
+//   5) Final funeral-bell boom (low sine cluster)
+export function playDeathSound() {
+  const ctx = audioCtx();
+  const t = ctx.currentTime;
+
+  // 1. Killing impact — deeper and louder than a normal hit
+  playSweep({
+    startFreq: 220,
+    endFreq: 38,
+    duration: 0.32,
+    type: "sine",
+    volume: 0.55,
+    startTime: t,
+  });
+  playFilteredNoise({
+    duration: 0.14,
+    volume: 0.38,
+    filterType: "bandpass",
+    startFreq: 1800,
+    endFreq: 500,
+    Q: 5,
+    startTime: t,
+  });
+  playSweep({
+    startFreq: 2200,
+    endFreq: 1600,
+    duration: 0.10,
+    type: "triangle",
+    volume: 0.16,
+    startTime: t + 0.02,
+  });
+
+  // 2. Long agonized death cry — triangle pitch-dive with vibrato
+  const cryStart = t + 0.16;
+  const cryDur = 0.75;
+  const cry = ctx.createOscillator();
+  const cryGain = ctx.createGain();
+  cry.type = "triangle";
+  cry.frequency.setValueAtTime(620, cryStart);
+  cry.frequency.linearRampToValueAtTime(480, cryStart + 0.12);
+  cry.frequency.linearRampToValueAtTime(260, cryStart + 0.45);
+  cry.frequency.linearRampToValueAtTime(110, cryStart + cryDur);
+  cryGain.gain.setValueAtTime(0.0001, cryStart);
+  cryGain.gain.exponentialRampToValueAtTime(0.26, cryStart + 0.04);
+  cryGain.gain.exponentialRampToValueAtTime(0.18, cryStart + 0.45);
+  cryGain.gain.exponentialRampToValueAtTime(0.0001, cryStart + cryDur);
+
+  const cryLfo = ctx.createOscillator();
+  const cryLfoGain = ctx.createGain();
+  cryLfo.type = "sine";
+  cryLfo.frequency.value = 14;
+  cryLfoGain.gain.value = 22;
+  cryLfo.connect(cryLfoGain);
+  cryLfoGain.connect(cry.frequency);
+
+  cry.connect(cryGain);
+  cryGain.connect(ctx.destination);
+  cry.start(cryStart);
+  cry.stop(cryStart + cryDur);
+  cryLfo.start(cryStart);
+  cryLfo.stop(cryStart + cryDur);
+
+  // 3. Descending minor chord — three detuned sawtooths through a warm lowpass
+  const chordStart = t + 0.55;
+  const chordDur = 0.85;
+  const chordFilter = ctx.createBiquadFilter();
+  chordFilter.type = "lowpass";
+  chordFilter.frequency.setValueAtTime(1400, chordStart);
+  chordFilter.frequency.exponentialRampToValueAtTime(350, chordStart + chordDur);
+  chordFilter.Q.value = 0.7;
+  const chordOut = ctx.createGain();
+  chordOut.gain.value = 1;
+  chordFilter.connect(chordOut);
+  chordOut.connect(ctx.destination);
+
+  // A minor: A3=220, C4=261.63, E4=329.63 — drop a full octave by the end
+  const chordVoices: Array<[number, number]> = [
+    [220.0, 110.0],
+    [261.63, 130.81],
+    [329.63, 164.81],
+  ];
+  chordVoices.forEach(([startFreq, endFreq], i) => {
+    const v = ctx.createOscillator();
+    const vg = ctx.createGain();
+    v.type = "sawtooth";
+    v.detune.value = (i - 1) * 6; // tiny detune so voices beat against each other
+    v.frequency.setValueAtTime(startFreq, chordStart);
+    v.frequency.exponentialRampToValueAtTime(endFreq, chordStart + chordDur);
+    vg.gain.setValueAtTime(0.0001, chordStart);
+    vg.gain.exponentialRampToValueAtTime(0.12, chordStart + 0.12);
+    vg.gain.exponentialRampToValueAtTime(0.0001, chordStart + chordDur);
+    v.connect(vg);
+    vg.connect(chordFilter);
+    v.start(chordStart);
+    v.stop(chordStart + chordDur);
+  });
+
+  // 4. Dark sub-bass rumble underneath the chord
+  playFilteredNoise({
+    duration: 1.0,
+    volume: 0.18,
+    filterType: "lowpass",
+    startFreq: 220,
+    endFreq: 55,
+    Q: 0.7,
+    startTime: t + 0.55,
+  });
+
+  // 5. Final funeral-bell boom — low sine cluster
+  const boomStart = t + 1.0;
+  const boomDur = 0.65;
+  [70, 35].forEach((freq, i) => {
+    const b = ctx.createOscillator();
+    const bg = ctx.createGain();
+    b.type = "sine";
+    b.frequency.setValueAtTime(freq, boomStart);
+    bg.gain.setValueAtTime(0.0001, boomStart);
+    bg.gain.exponentialRampToValueAtTime(i === 0 ? 0.32 : 0.22, boomStart + 0.02);
+    bg.gain.exponentialRampToValueAtTime(0.0001, boomStart + boomDur);
+    b.connect(bg);
+    bg.connect(ctx.destination);
+    b.start(boomStart);
+    b.stop(boomStart + boomDur);
+  });
+}
