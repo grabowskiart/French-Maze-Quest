@@ -422,6 +422,223 @@ export default function Dashboard() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        <Card data-testid="card-child-profiles">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Child Profiles
+            </CardTitle>
+            <CardDescription>
+              Add a profile for each child so siblings can play without overwriting each other's saved adventure. Each profile has its own in-progress dungeon run. You can have up to {MAX_PROFILES} profiles.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {profileList.length === 0 ? (
+              <div
+                className="rounded-md border border-primary/40 bg-primary/10 p-3 space-y-1"
+                data-testid="callout-first-step-profiles"
+              >
+                <p className="text-sm font-semibold text-foreground">
+                  Add a child's name to start playing
+                </p>
+                <p className="text-sm text-muted-foreground" data-testid="text-no-profiles-dashboard">
+                  This is the required first step. Once you add at least one profile below, kids can pick their name on the start screen and begin their adventure.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {profileList.map((profile) => {
+                  const isEditing = editingProfileId === profile.id;
+                  const isRemoving = removingProfileId === profile.id;
+                  const isResetting = resetSaveTargetId === profile.id;
+                  const profileHasSave = Boolean(savedRunByProfile[profile.id]);
+                  return (
+                    <div
+                      key={profile.id}
+                      className="rounded-md border p-3 space-y-2"
+                      data-testid={`row-profile-${profile.id}`}
+                    >
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="p-2 rounded-md bg-primary/10 text-primary">
+                            <UserRound className="h-4 w-4" />
+                          </div>
+                          {isEditing ? (
+                            <Input
+                              autoFocus
+                              value={editingProfileName}
+                              onChange={(e) => setEditingProfileName(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  handleRenameProfile();
+                                } else if (e.key === "Escape") {
+                                  e.preventDefault();
+                                  cancelEditProfile();
+                                }
+                              }}
+                              className="max-w-xs"
+                              data-testid={`input-rename-profile-${profile.id}`}
+                            />
+                          ) : (
+                            <div className="min-w-0">
+                              <p className="font-medium truncate" data-testid={`text-profile-name-${profile.id}`}>
+                                {profile.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground" data-testid={`text-profile-save-status-${profile.id}`}>
+                                {profileHasSave ? "Has a saved adventure" : "No saved adventure yet"}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {isEditing ? (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={handleRenameProfile}
+                                disabled={!editingProfileName.trim()}
+                                data-testid={`button-save-rename-${profile.id}`}
+                              >
+                                Save
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={cancelEditProfile}
+                                data-testid={`button-cancel-rename-${profile.id}`}
+                              >
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => startEditProfile(profile)}
+                                data-testid={`button-edit-profile-${profile.id}`}
+                              >
+                                <Pencil className="h-3.5 w-3.5 mr-1" />
+                                Rename
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setResetSaveTargetId(profile.id)}
+                                disabled={!profileHasSave}
+                                data-testid={`button-reset-saved-run-${profile.id}`}
+                              >
+                                <RotateCcw className="h-3.5 w-3.5 mr-1" />
+                                Reset Save
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setRemovingProfileId(profile.id)}
+                                data-testid={`button-remove-profile-${profile.id}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-1 text-destructive" />
+                                Remove
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {isResetting && (
+                        <div
+                          className="flex items-center gap-3 p-3 rounded-md border border-destructive/50 bg-destructive/5"
+                          data-testid={`confirm-reset-saved-run-${profile.id}`}
+                        >
+                          <p className="text-sm flex-1">
+                            Clear {profile.name}'s saved adventure? Their current progress will be lost.
+                          </p>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleResetSavedRun(profile.id)}
+                            data-testid={`button-confirm-reset-saved-run-${profile.id}`}
+                          >
+                            Yes, Clear
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setResetSaveTargetId(null)}
+                            data-testid={`button-cancel-reset-saved-run-${profile.id}`}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                      {isRemoving && (
+                        <div
+                          className="flex items-center gap-3 p-3 rounded-md border border-destructive/50 bg-destructive/5"
+                          data-testid={`confirm-remove-profile-${profile.id}`}
+                        >
+                          <p className="text-sm flex-1">
+                            Remove {profile.name}? Their saved adventure will also be deleted.
+                          </p>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleRemoveProfile(profile)}
+                            data-testid={`button-confirm-remove-profile-${profile.id}`}
+                          >
+                            Yes, Remove
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRemovingProfileId(null)}
+                            data-testid={`button-cancel-remove-profile-${profile.id}`}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Add a new profile</p>
+              <form
+                className="flex flex-wrap gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleAddProfile();
+                }}
+              >
+                <Input
+                  value={newProfileName}
+                  onChange={(e) => setNewProfileName(e.target.value)}
+                  placeholder="Child's name"
+                  maxLength={30}
+                  className="max-w-xs"
+                  disabled={profileList.length >= MAX_PROFILES}
+                  data-testid="input-new-profile-name"
+                />
+                <Button
+                  type="submit"
+                  disabled={!newProfileName.trim() || profileList.length >= MAX_PROFILES}
+                  data-testid="button-add-profile"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Add Profile
+                </Button>
+              </form>
+              {profileList.length >= MAX_PROFILES && (
+                <p className="text-xs text-muted-foreground" data-testid="text-profile-limit">
+                  Profile limit reached ({MAX_PROFILES}). Remove one to add a new child.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         <Tabs defaultValue="types" className="space-y-4">
           <TabsList className="grid w-full grid-cols-4" data-testid="tabs-dashboard">
             <TabsTrigger value="types" data-testid="tab-question-types">Question Types</TabsTrigger>
@@ -727,215 +944,6 @@ export default function Dashboard() {
                   : `Reset ${profileList.find((p) => p.id === resetStatsScope)?.name ?? ""}'s Stats`}
               </Button>
             )}
-          </CardContent>
-        </Card>
-
-        <Card data-testid="card-child-profiles">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-primary" />
-              Child Profiles
-            </CardTitle>
-            <CardDescription>
-              Add a profile for each child so siblings can play without overwriting each other's saved adventure. Each profile has its own in-progress dungeon run. You can have up to {MAX_PROFILES} profiles.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {profileList.length === 0 ? (
-              <p className="text-sm text-muted-foreground" data-testid="text-no-profiles-dashboard">
-                No profiles yet. Add one below to get started.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {profileList.map((profile) => {
-                  const isEditing = editingProfileId === profile.id;
-                  const isRemoving = removingProfileId === profile.id;
-                  const isResetting = resetSaveTargetId === profile.id;
-                  const profileHasSave = Boolean(savedRunByProfile[profile.id]);
-                  return (
-                    <div
-                      key={profile.id}
-                      className="rounded-md border p-3 space-y-2"
-                      data-testid={`row-profile-${profile.id}`}
-                    >
-                      <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="p-2 rounded-md bg-primary/10 text-primary">
-                            <UserRound className="h-4 w-4" />
-                          </div>
-                          {isEditing ? (
-                            <Input
-                              autoFocus
-                              value={editingProfileName}
-                              onChange={(e) => setEditingProfileName(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.preventDefault();
-                                  handleRenameProfile();
-                                } else if (e.key === "Escape") {
-                                  e.preventDefault();
-                                  cancelEditProfile();
-                                }
-                              }}
-                              className="max-w-xs"
-                              data-testid={`input-rename-profile-${profile.id}`}
-                            />
-                          ) : (
-                            <div className="min-w-0">
-                              <p className="font-medium truncate" data-testid={`text-profile-name-${profile.id}`}>
-                                {profile.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground" data-testid={`text-profile-save-status-${profile.id}`}>
-                                {profileHasSave ? "Has a saved adventure" : "No saved adventure yet"}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {isEditing ? (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={handleRenameProfile}
-                                disabled={!editingProfileName.trim()}
-                                data-testid={`button-save-rename-${profile.id}`}
-                              >
-                                Save
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={cancelEditProfile}
-                                data-testid={`button-cancel-rename-${profile.id}`}
-                              >
-                                Cancel
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => startEditProfile(profile)}
-                                data-testid={`button-edit-profile-${profile.id}`}
-                              >
-                                <Pencil className="h-3.5 w-3.5 mr-1" />
-                                Rename
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setResetSaveTargetId(profile.id)}
-                                disabled={!profileHasSave}
-                                data-testid={`button-reset-saved-run-${profile.id}`}
-                              >
-                                <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                                Reset Save
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setRemovingProfileId(profile.id)}
-                                data-testid={`button-remove-profile-${profile.id}`}
-                              >
-                                <Trash2 className="h-3.5 w-3.5 mr-1 text-destructive" />
-                                Remove
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      {isResetting && (
-                        <div
-                          className="flex items-center gap-3 p-3 rounded-md border border-destructive/50 bg-destructive/5"
-                          data-testid={`confirm-reset-saved-run-${profile.id}`}
-                        >
-                          <p className="text-sm flex-1">
-                            Clear {profile.name}'s saved adventure? Their current progress will be lost.
-                          </p>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleResetSavedRun(profile.id)}
-                            data-testid={`button-confirm-reset-saved-run-${profile.id}`}
-                          >
-                            Yes, Clear
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setResetSaveTargetId(null)}
-                            data-testid={`button-cancel-reset-saved-run-${profile.id}`}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      )}
-                      {isRemoving && (
-                        <div
-                          className="flex items-center gap-3 p-3 rounded-md border border-destructive/50 bg-destructive/5"
-                          data-testid={`confirm-remove-profile-${profile.id}`}
-                        >
-                          <p className="text-sm flex-1">
-                            Remove {profile.name}? Their saved adventure will also be deleted.
-                          </p>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleRemoveProfile(profile)}
-                            data-testid={`button-confirm-remove-profile-${profile.id}`}
-                          >
-                            Yes, Remove
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setRemovingProfileId(null)}
-                            data-testid={`button-cancel-remove-profile-${profile.id}`}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Add a new profile</p>
-              <form
-                className="flex flex-wrap gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleAddProfile();
-                }}
-              >
-                <Input
-                  value={newProfileName}
-                  onChange={(e) => setNewProfileName(e.target.value)}
-                  placeholder="Child's name"
-                  maxLength={30}
-                  className="max-w-xs"
-                  disabled={profileList.length >= MAX_PROFILES}
-                  data-testid="input-new-profile-name"
-                />
-                <Button
-                  type="submit"
-                  disabled={!newProfileName.trim() || profileList.length >= MAX_PROFILES}
-                  data-testid="button-add-profile"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Profile
-                </Button>
-              </form>
-              {profileList.length >= MAX_PROFILES && (
-                <p className="text-xs text-muted-foreground" data-testid="text-profile-limit">
-                  Profile limit reached ({MAX_PROFILES}). Remove one to add a new child.
-                </p>
-              )}
-            </div>
           </CardContent>
         </Card>
 
