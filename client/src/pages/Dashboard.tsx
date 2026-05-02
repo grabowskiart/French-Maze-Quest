@@ -31,10 +31,18 @@ import {
   Star,
   Zap,
   RotateCcw,
-  Plus
+  Plus,
+  Lock,
+  ShieldCheck
 } from "lucide-react";
 import type { GameSettings, Category, ConjugationPack, QuestionType, ProficiencyLevel, Tense } from "@shared/schema";
 import { StatsPanel } from "@/components/dashboard/StatsPanel";
+
+interface AiUsageStatus {
+  used: number;
+  limit: number;
+  isAdmin: boolean;
+}
 import {
   addProfile,
   clearSavedRun,
@@ -75,6 +83,8 @@ export default function Dashboard() {
   const [resetSaveTargetId, setResetSaveTargetId] = useState<string | null>(null);
   const [showAddVerbDialog, setShowAddVerbDialog] = useState(false);
   const [newVerbInput, setNewVerbInput] = useState("");
+  const [adminPasswordInput, setAdminPasswordInput] = useState("");
+  const [unlockError, setUnlockError] = useState<string | null>(null);
   const [profileList, setProfileList] = useState<ChildProfile[]>(() => loadProfiles());
   const [savedRunByProfile, setSavedRunByProfile] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -104,6 +114,56 @@ export default function Dashboard() {
 
   const { data: conjugationPacks, isLoading: packsLoading } = useQuery<ConjugationPack[]>({
     queryKey: ["/api/conjugation-packs"],
+  });
+
+  const { data: aiUsage } = useQuery<AiUsageStatus>({
+    queryKey: ["/api/admin/usage"],
+  });
+
+  const aiLimit = aiUsage?.limit ?? 5;
+  const aiUsed = aiUsage?.used ?? 0;
+  const isAdminUnlocked = aiUsage?.isAdmin ?? false;
+  const aiLocked = !isAdminUnlocked && aiUsed >= aiLimit;
+
+  const handleAiMutationError = (err: unknown) => {
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.startsWith("429")) {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/usage"] });
+      toast({
+        title: "Out of free AI generations",
+        description: "You've used all 5 free AI generations. Enter the admin password below to keep generating.",
+        variant: "destructive",
+      });
+      return true;
+    }
+    return false;
+  };
+
+  const unlockMutation = useMutation({
+    mutationFn: async (password: string): Promise<{ success: boolean }> => {
+      const res = await fetch("/api/admin/unlock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password }),
+      });
+      // Don't throw on 401 — the API returns { success: false }
+      const data = await res.json().catch(() => ({ success: false }));
+      return data as { success: boolean };
+    },
+    onSuccess: (data) => {
+      if (data.success) {
+        setAdminPasswordInput("");
+        setUnlockError(null);
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/usage"] });
+        toast({ title: "Admin unlocked", description: "AI generation is now unlimited on this browser." });
+      } else {
+        setUnlockError("Wrong password");
+      }
+    },
+    onError: () => {
+      setUnlockError("Couldn't reach the server. Try again.");
+    },
   });
 
   const updateSettingsMutation = useMutation({
@@ -146,12 +206,15 @@ export default function Dashboard() {
       const res = await apiRequest("POST", "/api/questions/generate", params);
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setGeneratingLevel(null);
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/usage"] });
       toast({ title: "Questions generated", description: `Created ${data.generatedCount} new questions.` });
     },
-    onError: () => {
+    onError: async (err) => {
       setGeneratingLevel(null);
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/usage"] });
+      if (handleAiMutationError(err)) return;
       toast({ title: "Error", description: "Failed to generate questions.", variant: "destructive" });
     },
   });
@@ -161,10 +224,13 @@ export default function Dashboard() {
       const res = await apiRequest("POST", `/api/conjugation-packs/${packId}/generate`, { count });
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/usage"] });
       toast({ title: "Conjugation questions created", description: `Added ${data.generatedCount} new exercises.` });
     },
-    onError: () => {
+    onError: async (err) => {
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/usage"] });
+      if (handleAiMutationError(err)) return;
       toast({ title: "Error", description: "Failed to generate conjugation questions.", variant: "destructive" });
     },
   });
@@ -174,11 +240,14 @@ export default function Dashboard() {
       const res = await apiRequest("POST", "/api/conjugation-packs/generate", { count });
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/conjugation-packs"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/usage"] });
       toast({ title: "New verbs added", description: `Added ${data.generatedCount} new verb conjugation packs.` });
     },
-    onError: () => {
+    onError: async (err) => {
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/usage"] });
+      if (handleAiMutationError(err)) return;
       toast({ title: "Error", description: "Failed to generate new verbs.", variant: "destructive" });
     },
   });
@@ -188,8 +257,9 @@ export default function Dashboard() {
       const res = await apiRequest("POST", "/api/conjugation-packs/add-verb", { verb });
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/conjugation-packs"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/usage"] });
       setShowAddVerbDialog(false);
       setNewVerbInput("");
       if (data.alreadyExists) {
@@ -204,7 +274,9 @@ export default function Dashboard() {
         });
       }
     },
-    onError: () => {
+    onError: async (err) => {
+      await queryClient.refetchQueries({ queryKey: ["/api/admin/usage"] });
+      if (handleAiMutationError(err)) return;
       toast({ title: "Error", description: "Failed to add the verb. Please try a different spelling.", variant: "destructive" });
     },
   });
@@ -390,6 +462,65 @@ export default function Dashboard() {
   };
 
   const isLoading = settingsLoading || categoriesLoading || packsLoading;
+
+  const aiUsageBlock = (
+    <div className="space-y-2" data-testid="ai-usage-block">
+      {isAdminUnlocked ? (
+        <div className="flex items-center gap-2 text-sm font-medium text-primary" data-testid="text-ai-usage">
+          <ShieldCheck className="h-4 w-4" />
+          <span>Admin unlocked — unlimited AI generations</span>
+        </div>
+      ) : aiLocked ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-destructive" data-testid="text-ai-usage">
+            <Lock className="h-4 w-4" />
+            <span>Out of free AI generations — enter the admin password to unlock</span>
+          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const trimmed = adminPasswordInput.trim();
+              if (trimmed && !unlockMutation.isPending) unlockMutation.mutate(trimmed);
+            }}
+            className="flex flex-wrap items-center gap-2"
+            data-testid="form-admin-unlock"
+          >
+            <Input
+              type="password"
+              placeholder="Admin password"
+              value={adminPasswordInput}
+              onChange={(e) => {
+                setAdminPasswordInput(e.target.value);
+                if (unlockError) setUnlockError(null);
+              }}
+              disabled={unlockMutation.isPending}
+              className="max-w-xs"
+              autoComplete="current-password"
+              data-testid="input-admin-password"
+            />
+            <Button
+              type="submit"
+              disabled={!adminPasswordInput.trim() || unlockMutation.isPending}
+              data-testid="button-admin-unlock"
+            >
+              {unlockMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Unlock
+            </Button>
+            {unlockError && (
+              <span className="text-xs text-destructive" data-testid="text-unlock-error">
+                {unlockError}
+              </span>
+            )}
+          </form>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground" data-testid="text-ai-usage">
+          <Sparkles className="h-3 w-3" />
+          <span>AI generations: {aiUsed} of {aiLimit} used</span>
+        </div>
+      )}
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -709,24 +840,27 @@ export default function Dashboard() {
                 </CardTitle>
                 <CardDescription>Use AI to create fresh practice questions</CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
-                <Button
-                  onClick={() => generateQuestionsMutation.mutate({ count: 5, proficiencyLevel: "beginner" })}
-                  disabled={generateQuestionsMutation.isPending}
-                  data-testid="button-generate-beginner"
-                >
-                  {generatingLevel === "beginner" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Generate 5 Beginner Questions
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => generateQuestionsMutation.mutate({ count: 5, proficiencyLevel: "intermediate" })}
-                  disabled={generateQuestionsMutation.isPending}
-                  data-testid="button-generate-intermediate"
-                >
-                  {generatingLevel === "intermediate" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Generate 5 Intermediate Questions
-                </Button>
+              <CardContent className="space-y-3">
+                {aiUsageBlock}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => generateQuestionsMutation.mutate({ count: 5, proficiencyLevel: "beginner" })}
+                    disabled={generateQuestionsMutation.isPending || aiLocked}
+                    data-testid="button-generate-beginner"
+                  >
+                    {generatingLevel === "beginner" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Generate 5 Beginner Questions
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => generateQuestionsMutation.mutate({ count: 5, proficiencyLevel: "intermediate" })}
+                    disabled={generateQuestionsMutation.isPending || aiLocked}
+                    data-testid="button-generate-intermediate"
+                  >
+                    {generatingLevel === "intermediate" && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Generate 5 Intermediate Questions
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -795,32 +929,36 @@ export default function Dashboard() {
                 </CardTitle>
                 <CardDescription>Generate new verb conjugation packs using AI (ordered by frequency of usage)</CardDescription>
               </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
-                <Button
-                  onClick={() => setShowAddVerbDialog(true)}
-                  data-testid="button-open-add-single-verb"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add a Specific Verb
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => generateNewVerbsMutation.mutate(3)}
-                  disabled={generateNewVerbsMutation.isPending}
-                  data-testid="button-generate-verbs"
-                >
-                  {generateNewVerbsMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Add 3 New Verbs
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => generateNewVerbsMutation.mutate(5)}
-                  disabled={generateNewVerbsMutation.isPending}
-                  data-testid="button-generate-verbs-5"
-                >
-                  {generateNewVerbsMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Add 5 New Verbs
-                </Button>
+              <CardContent className="space-y-3">
+                {aiUsageBlock}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => setShowAddVerbDialog(true)}
+                    disabled={aiLocked}
+                    data-testid="button-open-add-single-verb"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add a Specific Verb
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => generateNewVerbsMutation.mutate(3)}
+                    disabled={generateNewVerbsMutation.isPending || aiLocked}
+                    data-testid="button-generate-verbs"
+                  >
+                    {generateNewVerbsMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Add 3 New Verbs
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => generateNewVerbsMutation.mutate(5)}
+                    disabled={generateNewVerbsMutation.isPending || aiLocked}
+                    data-testid="button-generate-verbs-5"
+                  >
+                    {generateNewVerbsMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Add 5 New Verbs
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -850,7 +988,7 @@ export default function Dashboard() {
                           size="sm"
                           variant="ghost"
                           onClick={() => generateConjugationMutation.mutate({ packId: pack.id, count: 6 })}
-                          disabled={generateConjugationMutation.isPending}
+                          disabled={generateConjugationMutation.isPending || aiLocked}
                           data-testid={`button-generate-conj-${pack.id}`}
                         >
                           <Sparkles className="h-3 w-3" />
@@ -996,7 +1134,7 @@ export default function Dashboard() {
               </Button>
               <Button
                 type="submit"
-                disabled={!newVerbInput.trim() || addSingleVerbMutation.isPending}
+                disabled={!newVerbInput.trim() || addSingleVerbMutation.isPending || aiLocked}
                 data-testid="button-submit-add-verb"
               >
                 {addSingleVerbMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

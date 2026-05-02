@@ -1,9 +1,19 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { answerSchema, profileIdSchema, recordDefeatSchema, resetStatsSchema, updateGameSettingsSchema } from "@shared/schema";
+import { answerSchema, profileIdSchema, recordDefeatSchema, resetStatsSchema, updateGameSettingsSchema, AI_USAGE_LIMIT } from "@shared/schema";
 import { z } from "zod";
 import { generateAndSaveQuestions, generateConjugationQuestions, generateConjugationPacks, generateConjugationPackForVerb } from "./questionGenerator";
+import {
+  aiRateLimit,
+  checkUnlockRateLimit,
+  clearUnlockFailures,
+  ensureVisitorId,
+  isAdmin,
+  recordUnlockFailure,
+  setAdminCookie,
+  verifyAdminPassword,
+} from "./aiRateLimit";
 
 type ParsedProfileId =
   | { ok: true; profileId: string | null }
@@ -124,7 +134,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/questions/generate", async (req, res) => {
+  app.post("/api/questions/generate", aiRateLimit, async (req, res) => {
     try {
       const schema = z.object({
         count: z.number().min(1).max(20).default(5),
@@ -148,7 +158,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/conjugation-packs/:id/generate", async (req, res) => {
+  app.post("/api/conjugation-packs/:id/generate", aiRateLimit, async (req, res) => {
     try {
       const packId = parseInt(req.params.id);
       // Generates ALL possible conjugation questions for the pack (all pronouns × all tenses)
@@ -160,7 +170,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/conjugation-packs/add-verb", async (req, res) => {
+  app.post("/api/conjugation-packs/add-verb", aiRateLimit, async (req, res) => {
     try {
       const schema = z.object({
         verb: z.string().trim().min(1, "Verb cannot be empty").max(100),
@@ -177,7 +187,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/conjugation-packs/generate", async (req, res) => {
+  app.post("/api/conjugation-packs/generate", aiRateLimit, async (req, res) => {
     try {
       const schema = z.object({
         count: z.number().min(1).max(10).default(3),
@@ -234,6 +244,46 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error recording defeated creature:", error);
       res.status(500).json({ error: "Failed to record defeated creature" });
+    }
+  });
+
+  app.get("/api/admin/usage", async (req, res) => {
+    try {
+      const admin = isAdmin(req);
+      const visitorId = ensureVisitorId(req, res);
+      const used = admin ? 0 : await storage.getAiUsage(visitorId);
+      res.json({ used, limit: AI_USAGE_LIMIT, isAdmin: admin });
+    } catch (error) {
+      console.error("Error fetching AI usage:", error);
+      res.status(500).json({ error: "Failed to fetch AI usage" });
+    }
+  });
+
+  app.post("/api/admin/unlock", async (req, res) => {
+    try {
+      const visitorId = ensureVisitorId(req, res);
+      const gate = checkUnlockRateLimit(visitorId);
+      if (!gate.allowed) {
+        res.setHeader("Retry-After", String(gate.retryAfterSeconds ?? 900));
+        return res.status(429).json({ success: false, error: "too_many_attempts" });
+      }
+      const schema = z.object({ password: z.string().min(1).max(200) });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        recordUnlockFailure(visitorId);
+        return res.status(400).json({ success: false });
+      }
+      const ok = verifyAdminPassword(parsed.data.password);
+      if (!ok) {
+        recordUnlockFailure(visitorId);
+        return res.status(401).json({ success: false });
+      }
+      clearUnlockFailures(visitorId);
+      setAdminCookie(res);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error processing admin unlock:", error);
+      res.status(500).json({ success: false });
     }
   });
 

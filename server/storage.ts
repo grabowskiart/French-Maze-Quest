@@ -1,5 +1,5 @@
 import type { Question, PublicQuestion, QuestionType, ProficiencyLevel, Category, ConjugationPack, GameSettings, DbQuestion, QuestionState as DbQuestionState, StatsResponse } from "@shared/schema";
-import { categories, conjugationPacks, questions, questionStates, gameSettings, defeatedCreatures } from "@shared/schema";
+import { categories, conjugationPacks, questions, questionStates, gameSettings, defeatedCreatures, aiUsage } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, inArray, sql, desc, asc, or, isNull, type Column } from "drizzle-orm";
 import { questionBank, checkAnswer } from "./questionBank";
@@ -35,6 +35,8 @@ export interface IStorage {
   resetStats(profileId?: string): Promise<void>;
   getDefeatedCreatures(profileId?: string | null): Promise<string[]>;
   recordDefeatedCreature(creatureId: string, profileId?: string | null): Promise<void>;
+  getAiUsage(visitorId: string): Promise<number>;
+  tryConsumeAiUsage(visitorId: string, limit: number): Promise<{ allowed: boolean; used: number }>;
 }
 
 function dbQuestionToQuestion(dbQ: DbQuestion, state?: DbQuestionState | null, categoryName?: string): Question {
@@ -486,6 +488,36 @@ export class DatabaseStorage implements IStorage {
         target: [defeatedCreatures.profileId, defeatedCreatures.creatureId],
       });
   }
+
+  async getAiUsage(visitorId: string): Promise<number> {
+    const [row] = await db
+      .select({ callsUsed: aiUsage.callsUsed })
+      .from(aiUsage)
+      .where(eq(aiUsage.visitorId, visitorId));
+    return row?.callsUsed ?? 0;
+  }
+
+  async tryConsumeAiUsage(visitorId: string, limit: number): Promise<{ allowed: boolean; used: number }> {
+    // Atomic upsert + conditional increment so two concurrent requests can't
+    // both squeak past the cap. On INSERT (first call) we always succeed. On
+    // UPDATE we only increment when calls_used < limit; if WHERE fails the
+    // row is not updated and nothing is RETURNED.
+    const result = await db.execute<{ calls_used: number }>(sql`
+      INSERT INTO ai_usage (visitor_id, calls_used, last_used_at)
+      VALUES (${visitorId}, 1, now())
+      ON CONFLICT (visitor_id) DO UPDATE
+        SET calls_used = ai_usage.calls_used + 1,
+            last_used_at = now()
+        WHERE ai_usage.calls_used < ${limit}
+      RETURNING calls_used
+    `);
+    const rows = result.rows ?? [];
+    if (rows.length === 0) {
+      const used = await this.getAiUsage(visitorId);
+      return { allowed: false, used };
+    }
+    return { allowed: true, used: Number(rows[0].calls_used) };
+  }
 }
 
 export class MemStorage implements IStorage {
@@ -626,6 +658,20 @@ export class MemStorage implements IStorage {
       this.defeatedByProfile.set(key, set);
     }
     set.add(creatureId);
+  }
+
+  private aiUsageMap: Map<string, number> = new Map();
+
+  async getAiUsage(visitorId: string): Promise<number> {
+    return this.aiUsageMap.get(visitorId) ?? 0;
+  }
+
+  async tryConsumeAiUsage(visitorId: string, limit: number): Promise<{ allowed: boolean; used: number }> {
+    const current = this.aiUsageMap.get(visitorId) ?? 0;
+    if (current >= limit) return { allowed: false, used: current };
+    const next = current + 1;
+    this.aiUsageMap.set(visitorId, next);
+    return { allowed: true, used: next };
   }
 }
 

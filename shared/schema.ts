@@ -133,6 +133,20 @@ export const insertDefeatedCreatureSchema = createInsertSchema(defeatedCreatures
 export type DefeatedCreature = typeof defeatedCreatures.$inferSelect;
 export type InsertDefeatedCreature = z.infer<typeof insertDefeatedCreatureSchema>;
 
+export const aiUsage = pgTable("ai_usage", {
+  id: serial("id").primaryKey(),
+  visitorId: varchar("visitor_id", { length: 64 }).notNull().unique(),
+  callsUsed: integer("calls_used").default(0).notNull(),
+  lastUsedAt: timestamp("last_used_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAiUsageSchema = createInsertSchema(aiUsage).omit({ id: true, createdAt: true, lastUsedAt: true });
+export type AiUsage = typeof aiUsage.$inferSelect;
+export type InsertAiUsage = z.infer<typeof insertAiUsageSchema>;
+
+export const AI_USAGE_LIMIT = 5;
+
 export const insertCategorySchema = createInsertSchema(categories).omit({ id: true, createdAt: true });
 export const insertConjugationPackSchema = createInsertSchema(conjugationPacks).omit({ id: true, createdAt: true });
 export const insertQuestionSchema = createInsertSchema(questions).omit({ id: true, createdAt: true });

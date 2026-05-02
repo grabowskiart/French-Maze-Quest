@@ -74,6 +74,7 @@ This is an educational game that combines French language learning with maze exp
 - **conjugation_packs**: Verb conjugation packs (être, avoir, etc.)
 - **question_states**: Spaced repetition state (streak, last seen) — keyed by `(questionId, profileId)` so each child profile has its own per-question history. `profileId` is nullable for legacy/aggregated entries.
 - **game_settings**: Configurable game settings (maze size, visibility, etc.)
+- **ai_usage**: Per-visitor lifetime counter (`visitor_id` → `calls_used`) backing the 5-per-visitor cap on AI generation endpoints
 
 ## API Endpoints
 
@@ -100,6 +101,14 @@ This is an educational game that combines French language learning with maze exp
 
 ### Question Generation
 - `POST /api/questions/generate` - Generate questions using OpenAI
+
+### AI Usage Limits & Admin
+- AI-powered generation endpoints are capped at **5 lifetime calls per browser visitor** to prevent OpenAI bill abuse from public visitors. The cap covers: `POST /api/questions/generate`, `POST /api/conjugation-packs/:id/generate`, `POST /api/conjugation-packs/generate`, and `POST /api/conjugation-packs/add-verb`. Gameplay endpoints are unaffected.
+- Visitor identity is a signed `HttpOnly` cookie (`visitor_id`) issued automatically; the counter lives in the `ai_usage` table. Counts attempts (not successful generations).
+- A parent can bypass the cap by entering the `ADMIN_PASSWORD` (env var) into the inline unlock form in the Parent Dashboard. Successful unlock sets a separate signed `admin` cookie on the same browser. Fails closed: if `ADMIN_PASSWORD` is unset, unlock always returns failure.
+- The unlock endpoint is brute-force-protected: after 10 failed attempts on the same visitor cookie the endpoint locks out for 15 minutes (in-memory; resets on server restart).
+- `GET /api/admin/usage` - returns `{ used, limit, isAdmin }` for the current visitor; issues the visitor cookie if missing.
+- `POST /api/admin/unlock` - body `{ password }`; on success sets the admin cookie and returns `{ success: true }`. On failure returns 401 `{ success: false }`. After 10 failures returns 429 with a `Retry-After` header.
 
 ## Design System
 
