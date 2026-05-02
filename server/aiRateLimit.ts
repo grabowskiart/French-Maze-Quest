@@ -65,7 +65,18 @@ export function ensureVisitorId(req: Request, res: Response): string {
   return fresh;
 }
 
+function adminPasswordConfigured(): boolean {
+  const expected = process.env.ADMIN_PASSWORD;
+  return typeof expected === "string" && expected.length > 0;
+}
+
+/**
+ * Fails closed: even a valid signed admin cookie is ignored if ADMIN_PASSWORD
+ * is unset/empty. This prevents a previously issued admin cookie from
+ * granting unlimited generation if the env var is removed later.
+ */
 export function isAdmin(req: Request): boolean {
+  if (!adminPasswordConfigured()) return false;
   const value = readSignedCookie(req, ADMIN_COOKIE);
   return value === "1";
 }
@@ -113,7 +124,9 @@ export function checkUnlockRateLimit(visitorId: string): { allowed: boolean; ret
 export function recordUnlockFailure(visitorId: string): void {
   const now = Date.now();
   const entry = unlockAttempts.get(visitorId);
-  if (!entry || entry.lockedUntil <= now) {
+  // Reset only if there's no entry or a prior lockout has expired.
+  // (lockedUntil === 0 means the entry has never been locked — keep its count.)
+  if (!entry || (entry.lockedUntil > 0 && entry.lockedUntil <= now)) {
     unlockAttempts.set(visitorId, { count: 1, lockedUntil: 0 });
     return;
   }
