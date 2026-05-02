@@ -1,4 +1,4 @@
-import { Swords, Shield, Gem, Flame, Save, UserRound, Settings, BookOpen } from "lucide-react";
+import { Swords, Shield, Gem, Flame, Save, UserRound, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import type { ChildProfile } from "@/lib/saveGame";
@@ -143,16 +143,6 @@ export function StartScreen({
                   Open Parent Dashboard
                 </Button>
               </Link>
-              <Link href="/bestiary">
-                <Button
-                  variant="outline"
-                  className="w-full bg-black/40 border border-purple-400/60 text-purple-100 hover:bg-purple-900/40"
-                  data-testid="button-open-bestiary-no-profiles"
-                >
-                  <BookOpen className="w-4 h-4 mr-2" />
-                  View Bestiary
-                </Button>
-              </Link>
             </div>
           )}
         </div>
@@ -186,17 +176,6 @@ export function StartScreen({
               {hasSave ? "New Adventure" : "Enter the Dungeon"}
             </Button>
           )}
-
-          <Link href="/bestiary">
-            <Button
-              variant="outline"
-              className="w-full h-12 text-base font-display bg-black/40 border border-purple-400/60 text-purple-100 hover:bg-purple-900/40"
-              data-testid="button-open-bestiary"
-            >
-              <BookOpen className="w-5 h-5 mr-2" />
-              View Bestiary
-            </Button>
-          </Link>
         </div>
       </div>
     </div>

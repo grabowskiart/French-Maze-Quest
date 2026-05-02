@@ -1,4 +1,4 @@
-import { Flame, Clock, Moon, Sun, HelpCircle, Settings } from "lucide-react";
+import { Flame, Clock, Moon, Sun, HelpCircle, Settings, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/ThemeProvider";
 import { Badge } from "@/components/ui/badge";
@@ -64,6 +64,17 @@ export function GameHeader({ streak, questionsAnswered, sessionTime }: GameHeade
             />
             <span>{streak}</span>
           </div>
+
+          <Link href="/bestiary">
+            <Button
+              variant="ghost"
+              size="icon"
+              data-testid="button-open-bestiary"
+              aria-label="Bestiary"
+            >
+              <BookOpen className="w-5 h-5" />
+            </Button>
+          </Link>
 
           <Link href="/dashboard">
             <Button
