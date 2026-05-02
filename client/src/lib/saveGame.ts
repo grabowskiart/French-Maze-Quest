@@ -5,7 +5,10 @@ const LEGACY_SAVE_KEY = "french-maze:save:v1";
 const SAVE_KEY_PREFIX = "french-maze:save:v1:";
 const PROFILES_KEY = "french-maze:profiles:v1";
 const ACTIVE_PROFILE_KEY = "french-maze:activeProfile:v1";
+const BESTIARY_SEEN_KEY_PREFIX = "french-maze:bestiarySeen:v1:";
 const SAVE_VERSION = 1 as const;
+
+export const BESTIARY_SEEN_EVENT = "french-maze:bestiarySeen:changed";
 
 export const MAX_PROFILES = 6;
 
@@ -236,4 +239,48 @@ export function clearSavedRun(profileId: string | null): void {
 
 export function hasSavedRun(profileId: string | null): boolean {
   return loadSavedRun(profileId) !== null;
+}
+
+function bestiarySeenKey(profileId: string): string {
+  return `${BESTIARY_SEEN_KEY_PREFIX}${profileId}`;
+}
+
+export function loadSeenCreatureIds(profileId: string | null): string[] {
+  if (!isBrowser() || !profileId) return [];
+  try {
+    const raw = window.localStorage.getItem(bestiarySeenKey(profileId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((x): x is string => typeof x === "string");
+  } catch {
+    return [];
+  }
+}
+
+export function markCreaturesSeen(
+  profileId: string | null,
+  ids: readonly string[],
+): void {
+  if (!isBrowser() || !profileId || ids.length === 0) return;
+  try {
+    const existing = new Set(loadSeenCreatureIds(profileId));
+    let changed = false;
+    for (const id of ids) {
+      if (!existing.has(id)) {
+        existing.add(id);
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    window.localStorage.setItem(
+      bestiarySeenKey(profileId),
+      JSON.stringify(Array.from(existing)),
+    );
+    window.dispatchEvent(
+      new CustomEvent(BESTIARY_SEEN_EVENT, { detail: { profileId } }),
+    );
+  } catch {
+    // ignore
+  }
 }

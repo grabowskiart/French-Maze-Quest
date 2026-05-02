@@ -888,6 +888,7 @@ export default function Game() {
         streak={gameState.streak}
         questionsAnswered={gameState.questionsAnswered}
         sessionTime={sessionTime}
+        activeProfileId={activeProfileId}
       />
 
       <main className="max-w-6xl mx-auto px-3 py-4 sm:px-4 sm:py-8">

@@ -1,11 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { ArrowLeft, BookOpen, Crown, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { BOSS_CREATURE, CREATURE_ROSTER, type CreatureTemplate } from "@/lib/creatures";
-import { getActiveProfileId, loadProfiles } from "@/lib/saveGame";
+import { getActiveProfileId, loadProfiles, markCreaturesSeen } from "@/lib/saveGame";
 
 interface BestiaryResponse {
   defeatedCreatureIds: string[];
@@ -102,6 +102,13 @@ export default function Bestiary() {
     () => new Set(data?.defeatedCreatureIds ?? []),
     [data?.defeatedCreatureIds],
   );
+
+  useEffect(() => {
+    if (!activeProfileId) return;
+    const ids = data?.defeatedCreatureIds;
+    if (!ids || ids.length === 0) return;
+    markCreaturesSeen(activeProfileId, ids);
+  }, [activeProfileId, data?.defeatedCreatureIds]);
 
   const totalRosterUnlocked = CREATURE_ROSTER.reduce(
     (acc, c) => acc + (defeatedSet.has(c.id) ? 1 : 0),
