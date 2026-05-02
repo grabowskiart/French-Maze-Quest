@@ -474,6 +474,28 @@ export default function Game() {
     queryClient.invalidateQueries({ queryKey: ["/api/questions/next"] });
   }, []);
 
+  // Auto-resume an in-progress run when the user navigates back to /
+  // (e.g., from /bestiary or /dashboard) during the same tab session.
+  // sessionStorage scope means a brand-new tab still sees the StartScreen
+  // with the explicit "Continue Adventure" choice.
+  useEffect(() => {
+    const wasActive = sessionStorage.getItem("french-maze:in-game") === "1";
+    if (wasActive && savedRun && activeProfileId) {
+      continueGame();
+    }
+    // Mount-only: we intentionally check the flag once on initial render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const phase = gameState?.gamePhase;
+    if (phase && phase !== "start" && phase !== "won") {
+      sessionStorage.setItem("french-maze:in-game", "1");
+    } else {
+      sessionStorage.removeItem("french-maze:in-game");
+    }
+  }, [gameState?.gamePhase]);
+
   const buildSnapshotRef = useRef<(() => SavedRun | null) | null>(null);
   buildSnapshotRef.current = () => {
     if (!gameState) return null;
