@@ -393,6 +393,12 @@ export default function Game() {
     }
   }, [gameState?.sessionStartTime, gameState?.gamePhase]);
 
+  useEffect(() => {
+    if (!encounter?.woundedImage) return;
+    const img = new Image();
+    img.src = encounter.woundedImage;
+  }, [encounter?.id, encounter?.woundedImage]);
+
   const startGame = useCallback(() => {
     let maze = generateMaze(mazeWidth, mazeHeight);
     maze = updateVisibility(maze, maze.entrance, settingsRef.current.visibilityRadius);
