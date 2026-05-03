@@ -1061,7 +1061,7 @@ export default function Game() {
                   )}
                   <div className="mt-3 overflow-hidden rounded-lg border border-border bg-black/50">
                     <img
-                      src={encounter.hp <= encounter.maxHp / 2 ? (encounter.woundedImage ?? encounter.image) : encounter.image}
+                      src={encounter.hp <= encounter.maxHp / 2 ? encounter.woundedImage : encounter.image}
                       alt={encounter.name}
                       className={`w-full object-contain ${encounter.isBoss ? "h-[260px] sm:h-[360px] lg:h-[420px]" : "h-[240px] sm:h-[340px] lg:h-[400px]"}` }
                     />

@@ -246,7 +246,7 @@ export const BOSS_CREATURE: CreatureTemplate = {
   maxHp: maxNormalHp * 3,
   image: "/images/creatures/dragon-warden-alive.png",
   woundedImage: "/images/creatures/dragon-warden-wounded.png",
-    defeatedImage: "/images/creatures/dragon-warden-defeated.png",
+  defeatedImage: "/images/creatures/dragon-warden-defeated.png",
   taunts: [
     "ROAR! None shall pass the Dragon Warden!",
     "My treasure. My maze. My RULES.",
