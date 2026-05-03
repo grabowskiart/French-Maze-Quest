@@ -3,6 +3,7 @@ export interface CreatureTemplate {
   name: string;
   maxHp: number;
   image: string;
+  woundedImage: string;
   defeatedImage: string;
   taunts: string[];
 }
@@ -19,6 +20,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Skeleton Scout",
     maxHp: 3,
     image: "/images/creatures/skeleton-scout-alive.png",
+    woundedImage: "/images/creatures/skeleton-scout-wounded.png",
     defeatedImage: "/images/creatures/skeleton-scout-defeated.png",
     taunts: [
       "Clack-clack! You can't out-rattle me!",
@@ -31,6 +33,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Goblin Raider",
     maxHp: 3,
     image: "/images/creatures/goblin-raider-alive.png",
+    woundedImage: "/images/creatures/goblin-raider-wounded.png",
     defeatedImage: "/images/creatures/goblin-raider-defeated.png",
     taunts: [
       "Hand over your snacks, hero!",
@@ -43,6 +46,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Cave Troll",
     maxHp: 5,
     image: "/images/creatures/cave-troll-alive.png",
+    woundedImage: "/images/creatures/cave-troll-wounded.png",
     defeatedImage: "/images/creatures/cave-troll-defeated.png",
     taunts: [
       "Troll smash tiny adventurer!",
@@ -55,6 +59,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Basilisk Spawn",
     maxHp: 4,
     image: "/images/creatures/basilisk-spawn-alive.png",
+    woundedImage: "/images/creatures/basilisk-spawn-wounded.png",
     defeatedImage: "/images/creatures/basilisk-spawn-defeated.png",
     taunts: [
       "Don't look into my eyes... too late!",
@@ -67,6 +72,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Shadow Wraith",
     maxHp: 4,
     image: "/images/creatures/shadow-wraith-alive.png",
+    woundedImage: "/images/creatures/shadow-wraith-wounded.png",
     defeatedImage: "/images/creatures/shadow-wraith-defeated.png",
     taunts: [
       "Boooo! Did I scare you?",
@@ -79,6 +85,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Crypt Ghoul",
     maxHp: 4,
     image: "/images/creatures/crypt-ghoul-alive.png",
+    woundedImage: "/images/creatures/crypt-ghoul-wounded.png",
     defeatedImage: "/images/creatures/crypt-ghoul-defeated.png",
     taunts: [
       "Fresh visitors! How delightfully crunchy.",
@@ -91,6 +98,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Stone Gargoyle",
     maxHp: 5,
     image: "/images/creatures/stone-gargoyle-alive.png",
+    woundedImage: "/images/creatures/stone-gargoyle-wounded.png",
     defeatedImage: "/images/creatures/stone-gargoyle-defeated.png",
     taunts: [
       "I've waited a hundred years for a fight!",
@@ -103,6 +111,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Bone Knight",
     maxHp: 5,
     image: "/images/creatures/bone-knight-alive.png",
+    woundedImage: "/images/creatures/bone-knight-wounded.png",
     defeatedImage: "/images/creatures/bone-knight-defeated.png",
     taunts: [
       "En garde, little hero!",
@@ -115,6 +124,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Swamp Hag",
     maxHp: 4,
     image: "/images/creatures/swamp-hag-alive.png",
+    woundedImage: "/images/creatures/swamp-hag-wounded.png",
     defeatedImage: "/images/creatures/swamp-hag-defeated.png",
     taunts: [
       "Cackle cackle! Care for some toad stew?",
@@ -127,6 +137,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Infernal Imp",
     maxHp: 3,
     image: "/images/creatures/infernal-imp-alive.png",
+    woundedImage: "/images/creatures/infernal-imp-wounded.png",
     defeatedImage: "/images/creatures/infernal-imp-defeated.png",
     taunts: [
       "Tee-hee, want to play with fire?",
@@ -139,6 +150,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Dungeon Minotaur",
     maxHp: 6,
     image: "/images/creatures/dungeon-minotaur-alive.png",
+    woundedImage: "/images/creatures/dungeon-minotaur-wounded.png",
     defeatedImage: "/images/creatures/dungeon-minotaur-defeated.png",
     taunts: [
       "SNORT! You picked the wrong hallway!",
@@ -151,6 +163,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Nightmare Hound",
     maxHp: 4,
     image: "/images/creatures/nightmare-hound-alive.png",
+    woundedImage: "/images/creatures/nightmare-hound-wounded.png",
     defeatedImage: "/images/creatures/nightmare-hound-defeated.png",
     taunts: [
       "Grrrr... bad dreams, coming right up!",
@@ -163,6 +176,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Cursed Mimic",
     maxHp: 4,
     image: "/images/creatures/cursed-mimic-alive.png",
+    woundedImage: "/images/creatures/cursed-mimic-wounded.png",
     defeatedImage: "/images/creatures/cursed-mimic-defeated.png",
     taunts: [
       "Snicker... thought I was a treasure chest, huh?",
@@ -175,6 +189,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Spider Brood",
     maxHp: 3,
     image: "/images/creatures/spider-brood-alive.png",
+    woundedImage: "/images/creatures/spider-brood-wounded.png",
     defeatedImage: "/images/creatures/spider-brood-defeated.png",
     taunts: [
       "Skitter skitter! So many little legs!",
@@ -187,6 +202,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Lich Apprentice",
     maxHp: 5,
     image: "/images/creatures/lich-apprentice-alive.png",
+    woundedImage: "/images/creatures/lich-apprentice-wounded.png",
     defeatedImage: "/images/creatures/lich-apprentice-defeated.png",
     taunts: [
       "Watch closely. I just learned this spell!",
@@ -199,6 +215,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Mossy Slime",
     maxHp: 3,
     image: "/images/creatures/mossy-slime-alive.png",
+    woundedImage: "/images/creatures/mossy-slime-wounded.png",
     defeatedImage: "/images/creatures/mossy-slime-defeated.png",
     taunts: [
       "Glub glub... squish squish...",
@@ -211,6 +228,7 @@ export const CREATURE_ROSTER: CreatureTemplate[] = [
     name: "Rune Golem",
     maxHp: 6,
     image: "/images/creatures/rune-golem-alive.png",
+    woundedImage: "/images/creatures/rune-golem-wounded.png",
     defeatedImage: "/images/creatures/rune-golem-defeated.png",
     taunts: [
       "INTRUDER. ANSWER. OR. CRUMBLE.",
@@ -227,7 +245,8 @@ export const BOSS_CREATURE: CreatureTemplate = {
   name: "Dragon Warden",
   maxHp: maxNormalHp * 3,
   image: "/images/creatures/dragon-warden-alive.png",
-  defeatedImage: "/images/creatures/dragon-warden-defeated.png",
+  woundedImage: "/images/creatures/dragon-warden-wounded.png",
+    defeatedImage: "/images/creatures/dragon-warden-defeated.png",
   taunts: [
     "ROAR! None shall pass the Dragon Warden!",
     "My treasure. My maze. My RULES.",

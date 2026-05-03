@@ -144,3 +144,111 @@ id = "XB-MX-C78J8CpkBjwQGCn"
 uri = "file://client/public/images/creatures/rune-golem-defeated.png"
 type = "image"
 title = "rune-golem defeated"
+
+[[generated]]
+id = "xmlh300VRPlP1giwT8kP9"
+uri = "file://client/public/images/creatures/infernal-imp-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "-sn9NxTDe-uvLyYz_X5pH"
+uri = "file://client/public/images/creatures/dungeon-minotaur-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "5YnAuo3YUiXFN0X9hHbVs"
+uri = "file://client/public/images/creatures/nightmare-hound-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "VlbVozHyA66V0QHU0DU1I"
+uri = "file://client/public/images/creatures/cursed-mimic-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "vfaFEwzEenZBRObXInLhS"
+uri = "file://client/public/images/creatures/spider-brood-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "V-qlQS61RqXavWSOFCNcj"
+uri = "file://client/public/images/creatures/lich-apprentice-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "gwlFMMA9AEZ0UUQ7iU1ZY"
+uri = "file://client/public/images/creatures/mossy-slime-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "yF549NvygNdxRh_YP1Ej4"
+uri = "file://client/public/images/creatures/rune-golem-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "19BDH2lResvxK4YnLMYTX"
+uri = "file://client/public/images/creatures/dragon-warden-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "F6-6jSvFHpvIOhk2L7T1v"
+uri = "file://client/public/images/creatures/skeleton-scout-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "VR5J2kHITkHwj8n-UCwRf"
+uri = "file://client/public/images/creatures/goblin-raider-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "fwjQY5T57WfRpmCXW4QKG"
+uri = "file://client/public/images/creatures/cave-troll-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "vEyfs00cU0Wch3hXJKOXy"
+uri = "file://client/public/images/creatures/shadow-wraith-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "4dinITyMn-ACSEOtXd9Mp"
+uri = "file://client/public/images/creatures/crypt-ghoul-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "GhLve2w-CBsvB4x5OCcWY"
+uri = "file://client/public/images/creatures/stone-gargoyle-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "lfZhhUr5TRSmPXWeSHsvh"
+uri = "file://client/public/images/creatures/bone-knight-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "KA-nwDk03wcdiJgu-oMqW"
+uri = "file://client/public/images/creatures/swamp-hag-wounded.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "HJO5bQHJFkUk4yW_CNPGt"
+uri = "file://client/public/images/creatures/basilisk-spawn-wounded.png"
+type = "image"
+title = "generated_image"
