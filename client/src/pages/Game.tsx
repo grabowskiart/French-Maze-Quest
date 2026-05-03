@@ -179,7 +179,7 @@ export default function Game() {
   const activeProfileIdRef = useRef(activeProfileId);
   activeProfileIdRef.current = activeProfileId;
   const [gameState, setGameState] = useState<GameState | null>(null);
-  const [sessionTime, setSessionTime] = useState(0);
+  const [finalSessionTime, setFinalSessionTime] = useState(0);
   const [feedbackResult, setFeedbackResult] = useState<AnswerResult | null>(null);
   const [maxStreak, setMaxStreak] = useState(0);
   const [showDeathModal, setShowDeathModal] = useState(false);
@@ -385,13 +385,10 @@ export default function Game() {
   }, []);
 
   useEffect(() => {
-    if (gameState && gameState.gamePhase !== "start" && gameState.gamePhase !== "won") {
-      const interval = setInterval(() => {
-        setSessionTime(Date.now() - gameState.sessionStartTime);
-      }, 1000);
-      return () => clearInterval(interval);
+    if (gameState?.gamePhase === "won") {
+      setFinalSessionTime(Date.now() - gameState.sessionStartTime);
     }
-  }, [gameState?.sessionStartTime, gameState?.gamePhase]);
+  }, [gameState?.gamePhase, gameState?.sessionStartTime]);
 
   useEffect(() => {
     if (!encounter?.woundedImage) return;
@@ -421,7 +418,6 @@ export default function Game() {
     setStepsSinceEncounter(0);
     setNextEncounterAt(randomInt(3, 5));
     setCombatMessage("Move through the maze. Creatures are lurking nearby.");
-    setSessionTime(0);
     setMaxStreak(0);
     setFeedbackResult(null);
     setShowDeathModal(false);
@@ -471,7 +467,6 @@ export default function Game() {
     setMaxStreak(saved.maxStreak);
     setCombatMessage(saved.combatMessage);
     setIsRevealQuestionMode(saved.isRevealQuestionMode);
-    setSessionTime(Math.max(0, saved.elapsedMs));
     setFeedbackResult(null);
     setShowDeathModal(false);
     setPickupModal(null);
@@ -570,6 +565,10 @@ export default function Game() {
     window.addEventListener("pagehide", flush);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
+      // Also flush on unmount so client-side navigation (e.g. opening the
+      // Bestiary) persists the up-to-date elapsed time. Otherwise the
+      // session timer appears to reset when returning to the game.
+      flush();
       window.removeEventListener("beforeunload", flush);
       window.removeEventListener("pagehide", flush);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -916,7 +915,7 @@ export default function Game() {
       <GameHeader
         streak={gameState.streak}
         questionsAnswered={gameState.questionsAnswered}
-        sessionTime={sessionTime}
+        sessionStartTime={gameState.sessionStartTime}
       />
 
       <main className="max-w-6xl mx-auto px-3 py-4 sm:px-4 sm:py-8">
@@ -1184,7 +1183,7 @@ export default function Game() {
         <WinScreen
           questionsAnswered={gameState.questionsAnswered}
           correctAnswers={gameState.correctAnswers}
-          sessionTime={sessionTime}
+          sessionTime={finalSessionTime}
           streak={maxStreak}
           showDragonVictoryScene={bossDefeated}
           equippedWeapon={equippedWeapon}

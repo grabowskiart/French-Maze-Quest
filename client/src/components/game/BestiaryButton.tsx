@@ -23,7 +23,7 @@ export function BestiaryButton({ activeProfileId }: BestiaryButtonProps) {
 
   const { data: bestiaryData } = useQuery<BestiaryResponse>({
     queryKey: bestiaryKey,
-    staleTime: 0,
+    staleTime: 60_000,
   });
 
   const [seenIds, setSeenIds] = useState<string[]>(() =>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Flame, Clock, Moon, Sun, HelpCircle, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/components/ThemeProvider";
@@ -7,18 +8,30 @@ import { Link } from "wouter";
 interface GameHeaderProps {
   streak: number;
   questionsAnswered: number;
-  sessionTime: number;
+  sessionStartTime: number;
 }
 
-export function GameHeader({ streak, questionsAnswered, sessionTime }: GameHeaderProps) {
-  const { theme, toggleTheme } = useTheme();
+function formatTime(ms: number) {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+}
 
-  const formatTime = (ms: number) => {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
-  };
+function SessionTimer({ sessionStartTime }: { sessionStartTime: number }) {
+  const [elapsed, setElapsed] = useState(() => Date.now() - sessionStartTime);
+  useEffect(() => {
+    setElapsed(Date.now() - sessionStartTime);
+    const id = setInterval(() => {
+      setElapsed(Date.now() - sessionStartTime);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [sessionStartTime]);
+  return <span>{formatTime(elapsed)}</span>;
+}
+
+export function GameHeader({ streak, questionsAnswered, sessionStartTime }: GameHeaderProps) {
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-50 w-full bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 border-b border-border rounded-b-2xl">
@@ -37,7 +50,7 @@ export function GameHeader({ streak, questionsAnswered, sessionTime }: GameHeade
             data-testid="badge-session-time"
           >
             <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
-            <span>{formatTime(sessionTime)}</span>
+            <SessionTimer sessionStartTime={sessionStartTime} />
           </Badge>
 
           <Badge

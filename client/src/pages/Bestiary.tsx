@@ -95,7 +95,7 @@ export default function Bestiary() {
 
   const { data, isLoading } = useQuery<BestiaryResponse>({
     queryKey,
-    staleTime: 0,
+    staleTime: 60_000,
   });
 
   const defeatedSet = useMemo(
